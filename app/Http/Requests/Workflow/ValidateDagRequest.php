@@ -21,6 +21,13 @@ class ValidateDagRequest extends FormRequest
     {
         return [
             'dag' => ['required', 'array', $validDag],
+            'dag.steps' => ['required', 'array', 'min:1', 'max:20'],
+            'dag.steps.*.id' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9][a-z0-9_-]*$/'],
+            'dag.steps.*.type' => ['required', 'string', 'in:HTTP_CALL,SCRIPT,DELAY,CONDITION'],
+            'dag.steps.*.name' => ['required', 'string', 'max:160'],
+            'dag.steps.*.config' => ['required', 'array'],
+            'dag.steps.*.dependencies' => ['present', 'array', 'max:20'],
+            'dag.steps.*.dependencies.*' => ['string', 'max:80', 'regex:/^[a-z0-9][a-z0-9_-]*$/'],
         ];
     }
 }

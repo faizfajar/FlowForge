@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RefreshTokenRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
@@ -51,11 +52,13 @@ class AuthController extends Controller
         ]);
     }
 
-    public function refresh(Request $request): JsonResponse
+    public function refresh(RefreshTokenRequest $request): JsonResponse
     {
+        $validated = $request->validated();
+
         return response()->json([
             'data' => $this->authService->refresh(
-                $request->input('refresh_token') ?: $request->bearerToken()
+                $validated['refresh_token'] ?? $request->bearerToken()
             ),
         ]);
     }

@@ -59,6 +59,13 @@ class AuthTest extends TestCase
         ])->assertOk()->assertJsonStructure(['data' => ['token', 'refresh_token', 'token_type', 'expires_in']]);
     }
 
+    public function test_refresh_requires_refresh_token_or_bearer_token(): void
+    {
+        $this->postJson('/api/v1/auth/refresh')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['refresh_token']);
+    }
+
     public function test_login_with_invalid_credentials_returns_401(): void
     {
         $this->createUser('admin@example.com', UserRole::ADMIN);

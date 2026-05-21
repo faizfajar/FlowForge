@@ -66,6 +66,37 @@ class MultiTenancyTest extends TestCase
         ])->assertNotFound();
     }
 
+    public function test_webhook_trigger_rejects_malformed_json_payload(): void
+    {
+        Queue::fake();
+        $user = $this->createUser('admin@example.com', UserRole::ADMIN, 'tenant-a');
+        $workflow = $this->createWorkflow($user);
+        $secret = 'top-secret';
+        $payload = '{"event":';
+
+        WebhookTrigger::withoutGlobalScopes()->create([
+            'tenant_id' => $user->tenant_id,
+            'workflow_definition_id' => $workflow->id,
+            'token' => 'token-123',
+            'secret' => $secret,
+            'is_active' => true,
+        ]);
+
+        $this->call(
+            'POST',
+            '/api/v1/webhooks/token-123/trigger',
+            [],
+            [],
+            [],
+            [
+                'HTTP_ACCEPT' => 'application/json',
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_X-Signature' => hash_hmac('sha256', $payload, $secret),
+            ],
+            $payload
+        )->assertUnprocessable()->assertJsonValidationErrors(['payload']);
+    }
+
     private function createWorkflow(User $user): WorkflowDefinition
     {
         $definition = WorkflowDefinition::withoutGlobalScopes()->create([

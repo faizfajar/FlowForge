@@ -7,11 +7,11 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Workflow\StoreWorkflowRequest;
 use App\Http\Requests\Workflow\UpdateWorkflowRequest;
+use App\Http\Requests\Workflow\ValidateDagRequest;
 use App\Http\Resources\WorkflowResource;
 use App\Http\Resources\WorkflowVersionResource;
 use App\Models\WorkflowDefinition;
 use App\Services\Workflow\WorkflowService;
-use App\Rules\ValidDag;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -105,11 +105,9 @@ class WorkflowController extends Controller
         ]);
     }
 
-    public function validateDag(Request $request, ValidDag $validDag): JsonResponse
+    public function validateDag(ValidateDagRequest $request): JsonResponse
     {
-        $request->validate([
-            'dag' => ['required', 'array', $validDag],
-        ]);
+        $request->validated();
 
         return response()->json(['data' => ['valid' => true]]);
     }

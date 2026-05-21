@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Trigger\WebhookTriggerRequest;
 use App\Http\Resources\WorkflowRunResource;
 use App\Services\Workflow\TriggerService;
 use App\Services\Workflow\WorkflowService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 class TriggerController extends Controller
@@ -42,7 +42,7 @@ class TriggerController extends Controller
         ]);
     }
 
-    public function triggerWebhook(string $token, Request $request): JsonResponse
+    public function triggerWebhook(string $token, WebhookTriggerRequest $request): JsonResponse
     {
         return response()->json([
             'data' => new WorkflowRunResource($this->triggerService->triggerWebhook($token, $request)),

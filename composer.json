@@ -8,7 +8,6 @@
         "php": "^8.3",
         "laravel/framework": "^11.0",
         "laravel/reverb": "^1.10",
-        "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.9",
         "spatie/laravel-permission": "^6.25",
         "spatie/laravel-query-builder": "^6.4",

@@ -28,6 +28,9 @@ class AuthController extends Controller
             'data' => [
                 'user' => new UserResource($result['user']),
                 'token' => $result['token'],
+                'refresh_token' => $result['refresh_token'],
+                'token_type' => $result['token_type'],
+                'expires_in' => $result['expires_in'],
             ],
             'message' => 'Registered successfully.',
         ], Response::HTTP_CREATED);
@@ -41,7 +44,19 @@ class AuthController extends Controller
             'data' => [
                 'user' => new UserResource($result['user']),
                 'token' => $result['token'],
+                'refresh_token' => $result['refresh_token'],
+                'token_type' => $result['token_type'],
+                'expires_in' => $result['expires_in'],
             ],
+        ]);
+    }
+
+    public function refresh(Request $request): JsonResponse
+    {
+        return response()->json([
+            'data' => $this->authService->refresh(
+                $request->input('refresh_token') ?: $request->bearerToken()
+            ),
         ]);
     }
 

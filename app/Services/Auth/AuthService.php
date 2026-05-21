@@ -15,9 +15,13 @@ use Spatie\Permission\Models\Role;
 
 class AuthService
 {
+    public function __construct(private readonly JwtService $jwtService)
+    {
+    }
+
     /**
      * @param  array{name: string, email: string, password: string, tenant_name: string}  $data
-     * @return array{user: User, token: string}
+     * @return array{user: User, token: string, refresh_token: string, token_type: string, expires_in: int}
      */
     public function register(array $data): array
     {
@@ -41,13 +45,13 @@ class AuthService
 
         return [
             'user' => $user->load('tenant'),
-            'token' => $user->createToken('api')->plainTextToken,
+            ...$this->jwtService->tokenPair($user),
         ];
     }
 
     /**
      * @param  array{email: string, password: string}  $credentials
-     * @return array{user: User, token: string}
+     * @return array{user: User, token: string, refresh_token: string, token_type: string, expires_in: int}
      */
     public function login(array $credentials): array
     {
@@ -62,16 +66,28 @@ class AuthService
 
         return [
             'user' => $user->load('tenant'),
-            'token' => $user->createToken('api')->plainTextToken,
+            ...$this->jwtService->tokenPair($user),
         ];
+    }
+
+    /**
+     * @return array{token: string, refresh_token: string, token_type: string, expires_in: int}
+     */
+    public function refresh(?string $refreshToken): array
+    {
+        $tokens = $this->jwtService->refresh($refreshToken);
+
+        if ($tokens === null) {
+            throw ValidationException::withMessages([
+                'refresh_token' => ['The refresh token is invalid or expired.'],
+            ])->status(401);
+        }
+
+        return $tokens;
     }
 
     public function logout(User $user): void
     {
-        $token = $user->currentAccessToken();
-
-        if ($token !== null) {
-            $token->delete();
-        }
+        // JWT authentication is stateless; clients discard the token on logout.
     }
 }

@@ -118,18 +118,23 @@ onMounted(async () => {
             </div>
             <button v-if="embedded" type="button" class="secondary" @click="emit('cancel')">Cancel</button>
         </header>
-        <label>Name<input v-model="name" required /></label>
-        <p v-if="errors.name" class="error">{{ errors.name[0] }}</p>
-        <label>Description<textarea v-model="description" /></label>
-        <label>Schedule cron<input v-model="scheduleCron" placeholder="*/5 * * * *" /></label>
-        <p v-if="errors.schedule_cron" class="error">{{ errors.schedule_cron[0] }}</p>
-        <label>DAG JSON<pre contenteditable @input="dagText = ($event.target as HTMLElement).innerText">{{ dagText }}</pre></label>
-        <p v-if="errors.dag" class="error">{{ errors.dag[0] }}</p>
-        <footer>
-            <button type="button" @click="validateDag">Validate</button>
-            <button type="button" @click="showAi = true">Generate with AI</button>
-            <button type="button" @click="save">Save</button>
-        </footer>
+        <div class="editor-body">
+            <label>Name<input v-model="name" required /></label>
+            <p v-if="errors.name" class="error">{{ errors.name[0] }}</p>
+            <label>Description<textarea v-model="description" /></label>
+            <label>Schedule cron<input v-model="scheduleCron" placeholder="*/5 * * * *" /></label>
+            <p v-if="errors.schedule_cron" class="error">{{ errors.schedule_cron[0] }}</p>
+            <label class="dag-field">
+                <span>DAG JSON</span>
+                <textarea v-model="dagText" class="dag-input" spellcheck="false" />
+            </label>
+            <p v-if="errors.dag" class="error">{{ errors.dag[0] }}</p>
+            <footer class="editor-footer">
+                <button type="button" @click="validateDag">Validate</button>
+                <button type="button" @click="showAi = true">Generate with AI</button>
+                <button type="button" @click="save">Save</button>
+            </footer>
+        </div>
         <AiWorkflowBuilder v-if="showAi" @use="useAiDag" @close="showAi = false" />
 
         <section v-if="alertState !== null" class="alert-backdrop" role="dialog" aria-modal="true">
@@ -148,12 +153,14 @@ onMounted(async () => {
 <style scoped>
 .page { display: grid; gap: 14px; max-width: 920px; }
 .page.embedded {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0;
     flex: 1 0 min(720px, 100vw);
     max-width: none;
     min-width: min(720px, 100vw);
-    height: 100dvh;
-    overflow-y: auto;
-    padding: 18px;
+    height: 100%;
+    min-height: 0;
     background: #f7fafc;
     scroll-snap-align: start;
     scrollbar-gutter: stable;
@@ -163,13 +170,45 @@ onMounted(async () => {
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
+    padding: 18px 18px 14px;
+    border-bottom: 1px solid #dbe3ef;
+    background: #f7fafc;
 }
 h1 { margin: 0; font-size: 22px; }
 .editor-header p { margin: 5px 0 0; color: #64748b; font-size: 13px; }
+.editor-body {
+    display: grid;
+    align-content: start;
+    gap: 14px;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 18px;
+}
 label { display: grid; gap: 7px; font-weight: 700; }
-input, textarea, pre { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: white; }
-pre { min-height: 320px; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-footer { display: flex; gap: 10px; }
+input, textarea { border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: white; }
+textarea { min-height: 108px; resize: vertical; }
+.dag-field { min-height: 0; }
+.dag-input {
+    min-height: 320px;
+    height: min(48dvh, 560px);
+    overflow: auto;
+    padding: 12px;
+    resize: none;
+    white-space: pre;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.editor-footer {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: rgb(247 250 252 / 96%);
+    backdrop-filter: blur(8px);
+}
 button {
     border: 1px solid #0f766e;
     border-radius: 6px;
@@ -215,18 +254,29 @@ button.secondary {
     .page.embedded {
         flex-basis: 96vw;
         min-width: 96vw;
+    }
+
+    .editor-header {
+        padding: 14px;
+    }
+
+    .editor-body {
         padding: 14px;
     }
 
     .editor-header,
-    footer {
+    .editor-footer {
         align-items: stretch;
         flex-direction: column;
     }
 
-    footer button,
+    .editor-footer button,
     .editor-header button {
         width: 100%;
+    }
+
+    .dag-input {
+        height: min(42dvh, 420px);
     }
 }
 </style>

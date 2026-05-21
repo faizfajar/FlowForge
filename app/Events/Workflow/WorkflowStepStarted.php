@@ -22,7 +22,12 @@ class WorkflowStepStarted implements ShouldBroadcast
 
     public function broadcastOn(): PrivateChannel
     {
-        return new PrivateChannel("tenant.{$this->run->tenant_id}");
+        return new PrivateChannel("tenant.{$this->run->tenant_id}.workflow.{$this->run->workflow_definition_id}");
+    }
+
+    public function broadcastAs(): string
+    {
+        return 'WorkflowStepStarted';
     }
 
     /**
@@ -31,15 +36,19 @@ class WorkflowStepStarted implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'run' => ['id' => $this->run->id, 'status' => $this->run->status?->value],
+            'run' => [
+                'id' => $this->run->id,
+                'workflow_definition_id' => $this->run->workflow_definition_id,
+                'status' => $this->run->status?->value,
+            ],
             'step_run' => $this->stepRun === null ? null : [
                 'id' => $this->stepRun->id,
                 'step_id' => $this->stepRun->step_id,
                 'step_type' => $this->stepRun->step_type?->value,
                 'status' => $this->stepRun->status?->value,
                 'attempt' => $this->stepRun->attempt,
-                'started_at' => $this->stepRun->started_at?->toISOString(),
-                'completed_at' => $this->stepRun->completed_at?->toISOString(),
+                'started_at' => $this->stepRun->started_at?->timezone(config('app.timezone'))->toIso8601String(),
+                'completed_at' => $this->stepRun->completed_at?->timezone(config('app.timezone'))->toIso8601String(),
             ],
         ];
     }

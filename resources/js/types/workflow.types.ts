@@ -42,6 +42,8 @@ export interface Workflow {
     created_at: string;
 }
 
+export type WorkflowLastRun = NonNullable<Workflow['last_run']>;
+
 export interface WorkflowForm {
     name: string;
     description?: string | null;

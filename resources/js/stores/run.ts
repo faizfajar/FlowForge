@@ -2,7 +2,9 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { api } from '../lib/axios';
 import type { ApiResponse } from '../types/api.types';
-import type { StepRun, WorkflowRun } from '../types/run.types';
+import { RunStatus, type StepRun, type WorkflowRun } from '../types/run.types';
+
+type RunPatch = Partial<WorkflowRun> & { id: string };
 
 export const useRunStore = defineStore('run', () => {
     const currentRun = ref<WorkflowRun | null>(null);
@@ -34,5 +36,19 @@ export const useRunStore = defineStore('run', () => {
             : [...currentRun.value.step_runs, stepRun];
     };
 
-    return { currentRun, loading, fetchRun, cancelRun, updateStepRun };
+    const updateRun = (run: RunPatch): void => {
+        if (currentRun.value === null || currentRun.value.id !== run.id) {
+            return;
+        }
+
+        currentRun.value = {
+            ...currentRun.value,
+            ...run,
+            status: run.status === ('complete' as RunStatus) ? RunStatus.COMPLETED : run.status ?? currentRun.value.status,
+            workflow: run.workflow ?? currentRun.value.workflow,
+            step_runs: run.step_runs ?? currentRun.value.step_runs,
+        };
+    };
+
+    return { currentRun, loading, fetchRun, cancelRun, updateStepRun, updateRun };
 });

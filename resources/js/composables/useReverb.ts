@@ -2,7 +2,7 @@ import { onUnmounted, ref } from 'vue';
 import type { StepRun, WorkflowRun } from '../types/run.types';
 
 interface EchoPrivateChannel {
-    listen: (event: string, callback: (payload: ReverbPayload) => void) => EchoPrivateChannel;
+    listen: <T = ReverbPayload>(event: string, callback: (payload: T) => void) => EchoPrivateChannel;
     stopListening: (event: string) => EchoPrivateChannel;
 }
 
@@ -17,6 +17,7 @@ interface ReverbPayload {
 }
 
 interface RunCallbacks {
+    onRunStarted?: (run: WorkflowRun) => void;
     onStepStarted?: (stepRun: StepRun) => void;
     onStepCompleted?: (stepRun: StepRun) => void;
     onStepFailed?: (stepRun: StepRun) => void;
@@ -42,8 +43,8 @@ export function useReverb() {
         timers.push(timer);
     };
 
-    const subscribeToRun = (runId: string, tenantId: string, callbacks: RunCallbacks): void => {
-        const channelName = `tenant.${tenantId}`;
+    const subscribeToRun = (runId: string, tenantId: string, workflowId: string, callbacks: RunCallbacks): void => {
+        const channelName = `tenant.${tenantId}.workflow.${workflowId}`;
 
         const subscribe = (): void => {
             if (window.Echo === undefined) {
@@ -55,22 +56,27 @@ export function useReverb() {
             connected.value = true;
 
             channel
-                .listen('WorkflowStepStarted', (payload) => {
+                .listen('.WorkflowRunStarted', (payload) => {
+                    if (payload.run?.id === runId) {
+                        callbacks.onRunStarted?.(payload.run);
+                    }
+                })
+                .listen('.WorkflowStepStarted', (payload) => {
                     if (payload.run?.id === runId && payload.step_run !== null && payload.step_run !== undefined) {
                         callbacks.onStepStarted?.(payload.step_run);
                     }
                 })
-                .listen('WorkflowStepCompleted', (payload) => {
+                .listen('.WorkflowStepCompleted', (payload) => {
                     if (payload.run?.id === runId && payload.step_run !== null && payload.step_run !== undefined) {
                         callbacks.onStepCompleted?.(payload.step_run);
                     }
                 })
-                .listen('WorkflowStepFailed', (payload) => {
+                .listen('.WorkflowStepFailed', (payload) => {
                     if (payload.run?.id === runId && payload.step_run !== null && payload.step_run !== undefined) {
                         callbacks.onStepFailed?.(payload.step_run);
                     }
                 })
-                .listen('WorkflowRunCompleted', (payload) => {
+                .listen('.WorkflowRunCompleted', (payload) => {
                     if (payload.run?.id === runId) {
                         callbacks.onRunCompleted?.(payload.run);
                     }

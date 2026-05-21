@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Workflow;
 
+use App\Events\Workflow\WorkflowDefinitionChanged;
 use App\Models\User;
 use App\Models\WorkflowDefinition;
 use App\Models\WorkflowVersion;
@@ -42,7 +43,7 @@ class WorkflowService
         /** @var User $user */
         $user = request()->user('api') ?? request()->user();
 
-        return DB::transaction(function () use ($data, $user): WorkflowDefinition {
+        $definition = DB::transaction(function () use ($data, $user): WorkflowDefinition {
             $definition = WorkflowDefinition::query()->create([
                 'tenant_id' => $user->tenant_id,
                 'name' => $data['name'],
@@ -62,6 +63,10 @@ class WorkflowService
 
             return $definition->load('activeVersion');
         });
+
+        event(new WorkflowDefinitionChanged((string) $definition->tenant_id, 'created', (string) $definition->id, $definition));
+
+        return $definition;
     }
 
     public function show(int|string $id): WorkflowDefinition
@@ -82,7 +87,7 @@ class WorkflowService
         /** @var User $user */
         $user = request()->user('api') ?? request()->user();
 
-        return DB::transaction(function () use ($id, $data, $user): WorkflowDefinition {
+        $definition = DB::transaction(function () use ($id, $data, $user): WorkflowDefinition {
             $definition = WorkflowDefinition::query()->findOrFail($id);
             $latestVersion = (int) $definition->versions()->max('version_number');
 
@@ -106,11 +111,21 @@ class WorkflowService
 
             return $definition->load('activeVersion');
         });
+
+        event(new WorkflowDefinitionChanged((string) $definition->tenant_id, 'updated', (string) $definition->id, $definition));
+
+        return $definition;
     }
 
     public function destroy(string $id): void
     {
-        WorkflowDefinition::query()->findOrFail($id)->delete();
+        $definition = WorkflowDefinition::query()->findOrFail($id);
+        $tenantId = (string) $definition->tenant_id;
+        $workflowId = (string) $definition->id;
+
+        $definition->delete();
+
+        event(new WorkflowDefinitionChanged($tenantId, 'deleted', $workflowId));
     }
 
     public function getVersions(string $id): CursorPaginator
@@ -139,7 +154,10 @@ class WorkflowService
             $workflowVersion->forceFill(['is_active' => true])->save();
             $definition->forceFill(['active_version_id' => $workflowVersion->id])->save();
 
-            return $definition->load('activeVersion');
+            $definition = $definition->load('activeVersion');
+            event(new WorkflowDefinitionChanged((string) $definition->tenant_id, 'updated', (string) $definition->id, $definition));
+
+            return $definition;
         });
     }
 

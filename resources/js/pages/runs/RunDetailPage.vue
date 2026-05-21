@@ -7,6 +7,7 @@ import LogViewer from '../../components/workflow/LogViewer.vue';
 import { useReverb } from '../../composables/useReverb';
 import { useToast } from '../../composables/useToast';
 import { api } from '../../lib/axios';
+import { formatDateTime, formatDurationBetween } from '../../lib/datetime';
 import { useAuthStore } from '../../stores/auth';
 import { useRunStore } from '../../stores/run';
 import { RunStatus, type ExecutionLog, type StepRun, StepRunStatus } from '../../types/run.types';
@@ -51,8 +52,8 @@ const updateStep = (stepRun: StepRun): void => {
 onMounted(async () => {
     await runStore.fetchRun(runId.value);
     await loadLogs();
-    if (auth.user?.tenant.id !== undefined) {
-        reverb.subscribeToRun(runId.value, auth.user.tenant.id, {
+    if (auth.user?.tenant.id !== undefined && runStore.currentRun?.workflow.id !== undefined) {
+        reverb.subscribeToRun(runId.value, auth.user.tenant.id, runStore.currentRun.workflow.id, {
             onStepStarted: updateStep,
             onStepCompleted: updateStep,
             onStepFailed: updateStep,
@@ -73,8 +74,8 @@ onMounted(async () => {
             <h1>{{ runStore.currentRun.workflow.name }}</h1>
             <StepStatusBadge :status="runStore.currentRun.status" />
             <dl>
-                <dt>Started</dt><dd>{{ runStore.currentRun.started_at ?? '—' }}</dd>
-                <dt>Duration</dt><dd>{{ runStore.currentRun.completed_at ?? 'Running' }}</dd>
+                <dt>Started</dt><dd>{{ formatDateTime(runStore.currentRun.started_at) }}</dd>
+                <dt>Duration</dt><dd>{{ formatDurationBetween(runStore.currentRun.started_at, runStore.currentRun.completed_at) }}</dd>
             </dl>
             <button v-if="canCancel" type="button" @click="runStore.cancelRun(runStore.currentRun.id)">Cancel</button>
             <section>

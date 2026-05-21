@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { api } from '../lib/axios';
 import type { ApiResponse, PaginatedResponse } from '../types/api.types';
-import type { Workflow, WorkflowForm } from '../types/workflow.types';
+import type { Workflow, WorkflowForm, WorkflowLastRun } from '../types/workflow.types';
 import type { WorkflowRun } from '../types/run.types';
 
 export interface WorkflowFilters {
@@ -61,6 +61,42 @@ export const useWorkflowStore = defineStore('workflow', () => {
         return response.data.data;
     };
 
+    const upsertWorkflow = (workflow: Workflow): void => {
+        const index = workflows.value.findIndex((item) => item.id === workflow.id);
+
+        if (index === -1) {
+            workflows.value = [workflow, ...workflows.value];
+            return;
+        }
+
+        workflows.value = workflows.value.map((item) => item.id === workflow.id ? workflow : item);
+
+        if (currentWorkflow.value?.id === workflow.id) {
+            currentWorkflow.value = workflow;
+        }
+    };
+
+    const removeWorkflow = (id: string): void => {
+        workflows.value = workflows.value.filter((workflow) => workflow.id !== id);
+
+        if (currentWorkflow.value?.id === id) {
+            currentWorkflow.value = null;
+        }
+    };
+
+    const patchWorkflowLastRun = (workflowId: string, lastRun: WorkflowLastRun): void => {
+        workflows.value = workflows.value.map((workflow) => workflow.id === workflowId ? {
+            ...workflow,
+            last_run: {
+                id: lastRun.id,
+                status: lastRun.status,
+                trigger_type: lastRun.trigger_type,
+                started_at: lastRun.started_at,
+                completed_at: lastRun.completed_at,
+            },
+        } : workflow);
+    };
+
     return {
         workflows,
         currentWorkflow,
@@ -72,5 +108,8 @@ export const useWorkflowStore = defineStore('workflow', () => {
         updateWorkflow,
         deleteWorkflow,
         triggerWorkflow,
+        upsertWorkflow,
+        removeWorkflow,
+        patchWorkflowLastRun,
     };
 });

@@ -187,7 +187,7 @@ onUnmounted(() => {
 .trace-panel {
     flex: 1 0 min(680px, 100vw);
     min-width: 0;
-    height: 100dvh;
+    height: 100%;
     overflow-y: auto;
     background: #f7fafc;
     scroll-snap-align: start;

@@ -7,14 +7,13 @@ const auth = useAuthStore();
 
 <template>
     <div class="app-layout">
-        <aside class="sidebar">
-            <strong>FlowForge</strong>
-            <nav>
-                <RouterLink to="/dashboard">Dashboard</RouterLink>
-                <RouterLink to="/workflows">Workflows</RouterLink>
-            </nav>
-            <button type="button" @click="auth.logout">Logout</button>
-        </aside>
+        <header class="topbar">
+            <RouterLink to="/workflows" class="brand">FlowForge</RouterLink>
+            <div class="topbar-actions">
+                <RouterLink to="/workflows" class="nav-link">Monitoring</RouterLink>
+                <button type="button" @click="auth.logout">Logout</button>
+            </div>
+        </header>
         <main class="content">
             <RouterView />
         </main>
@@ -24,85 +23,74 @@ const auth = useAuthStore();
 <style scoped>
 .app-layout {
     display: grid;
-    grid-template-columns: 220px 1fr;
-    min-height: 100vh;
+    grid-template-rows: auto 1fr;
+    height: 100dvh;
     background: #f7fafc;
     color: #172033;
 }
 
-.sidebar {
+.topbar {
     display: flex;
-    flex-direction: column;
-    gap: 24px;
-    border-right: 1px solid #dbe3ef;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    border-bottom: 1px solid #dbe3ef;
     background: #ffffff;
-    padding: 24px;
+    padding: 12px 16px;
 }
 
-.sidebar nav {
-    display: grid;
-    gap: 10px;
+.brand {
+    color: #172033;
+    font-size: 16px;
+    font-weight: 800;
+    text-decoration: none;
 }
 
-.sidebar a {
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.nav-link {
     color: #334155;
     text-decoration: none;
 }
 
-.sidebar a.router-link-active {
+.nav-link.router-link-active {
     color: #0f766e;
     font-weight: 700;
 }
 
-.sidebar button {
-    margin-top: auto;
-}
-
 .content {
-    padding: 28px;
+    min-height: 0;
     min-width: 0;
+    padding: 18px;
 }
 
-.content:has(.monitoring-page) {
+.content:has(.monitoring-shell) {
     padding: 0;
     overflow: hidden;
 }
 
 @media (max-width: 900px) {
-    .app-layout {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
-    }
-
-    .sidebar {
+    .topbar {
         position: sticky;
         top: 0;
         z-index: 10;
-        flex-direction: row;
-        align-items: center;
-        gap: 16px;
+        align-items: flex-start;
+        flex-direction: column;
         padding: 12px 14px;
     }
 
-    .sidebar nav {
-        display: flex;
+    .topbar-actions {
+        width: 100%;
+        justify-content: space-between;
         flex: 1;
-        gap: 12px;
-        overflow-x: auto;
     }
 
-    .sidebar button {
-        margin-top: 0;
-        white-space: nowrap;
-    }
-
-    .content:has(.monitoring-page) .monitoring-page,
-    .content:has(.monitoring-page) .workflow-panel,
-    .content:has(.monitoring-page) .run-panel,
-    .content:has(.monitoring-page) .trace-panel,
-    .content:has(.monitoring-page) .page.embedded,
-    .content:has(.monitoring-page) .empty-panel {
-        height: calc(100dvh - 57px);
+    .content:has(.monitoring-shell) .monitoring-shell {
+        height: calc(100dvh - 95px);
     }
 }
 </style>

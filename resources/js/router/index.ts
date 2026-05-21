@@ -3,7 +3,6 @@ import AuthLayout from '../layouts/AuthLayout.vue';
 import AppLayout from '../layouts/AppLayout.vue';
 import LoginPage from '../pages/auth/LoginPage.vue';
 import RegisterPage from '../pages/auth/RegisterPage.vue';
-import DashboardPage from '../pages/DashboardPage.vue';
 import WorkflowListPage from '../pages/workflows/WorkflowListPage.vue';
 import WorkflowEditorPage from '../pages/workflows/WorkflowEditorPage.vue';
 import WorkflowDetailPage from '../pages/workflows/WorkflowDetailPage.vue';
@@ -16,8 +15,8 @@ const routes: RouteRecordRaw[] = [
         path: '/',
         component: AppLayout,
         children: [
-            { path: '', redirect: '/dashboard' },
-            { path: 'dashboard', component: DashboardPage, meta: { requiresAuth: true, roles: [UserRole.ADMIN] } },
+            { path: '', redirect: '/workflows' },
+            { path: 'dashboard', redirect: '/workflows', meta: { requiresAuth: true } },
             { path: 'workflows', component: WorkflowListPage, meta: { requiresAuth: true } },
             {
                 path: 'workflows/create',

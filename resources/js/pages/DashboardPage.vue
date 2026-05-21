@@ -36,7 +36,7 @@ onUnmounted(() => {
     <section class="page">
         <h1>Dashboard</h1>
         <div v-if="stats" class="stats">
-            <RouterLink to="/runs?status=RUNNING" class="stat"><span>Active runs</span><strong>{{ stats.active_runs_count }}</strong></RouterLink>
+            <RouterLink :to="{ path: '/workflows', query: { status: 'running' } }" class="stat"><span>Active runs</span><strong>{{ stats.active_runs_count }}</strong></RouterLink>
             <article class="stat"><span>Success rate 24h</span><strong>{{ stats.success_rate_last_24h }}%</strong></article>
             <article class="stat"><span>Avg execution 24h</span><strong>{{ formatDurationMs(stats.average_execution_time_last_24h * 1000) }}</strong></article>
             <article class="stat"><span>Total today</span><strong>{{ stats.total_runs_today }}</strong></article>

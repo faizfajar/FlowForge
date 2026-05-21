@@ -161,7 +161,7 @@ onUnmounted(() => {
 .run-panel {
     flex: 0 0 340px;
     width: 340px;
-    height: 100dvh;
+    height: 100%;
     overflow-y: auto;
     border-right: 1px solid #dbe3ef;
     background: white;

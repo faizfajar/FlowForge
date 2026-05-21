@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import LoadingSkeleton from '../ui/LoadingSkeleton.vue';
 import StepStatusBadge from '../ui/StepStatusBadge.vue';
 import ConfirmDialog from '../ui/ConfirmDialog.vue';
@@ -42,12 +43,17 @@ const emit = defineEmits<{
 }>();
 
 const auth = useAuthStore();
+const route = useRoute();
+const router = useRouter();
 const workflowStore = useWorkflowStore();
 const search = ref('');
+const statusFilter = ref('');
 const pendingTriggerWorkflow = ref<Workflow | null>(null);
 const triggeringWorkflowId = ref<string | null>(null);
 const activeChannel = ref<string | null>(null);
 let searchTimer = 0;
+
+const validStatuses = new Set(Object.values(RunStatus));
 
 const canCreate = computed(() => {
     const role = String(auth.user?.role ?? '').toLowerCase();
@@ -58,7 +64,10 @@ const canCreate = computed(() => {
 const canTrigger = canCreate;
 
 const load = async (): Promise<void> => {
-    await workflowStore.fetchWorkflows({ name: search.value || undefined });
+    await workflowStore.fetchWorkflows({
+        name: search.value || undefined,
+        status: statusFilter.value || undefined,
+    });
 };
 
 const trigger = async (): Promise<void> => {
@@ -94,6 +103,31 @@ const statusOf = (workflow: Workflow): RunStatus | null => {
     const status = workflow.last_run?.status;
 
     return Object.values(RunStatus).includes(status as RunStatus) ? status as RunStatus : null;
+};
+
+const syncRouteFilters = (): void => {
+    const rawSearch = route.query.search;
+    const rawStatus = route.query.status;
+    const nextSearch = typeof rawSearch === 'string' ? rawSearch : '';
+    const nextStatus = typeof rawStatus === 'string' && validStatuses.has(rawStatus as RunStatus) ? rawStatus : '';
+
+    if (search.value !== nextSearch) {
+        search.value = nextSearch;
+    }
+
+    if (statusFilter.value !== nextStatus) {
+        statusFilter.value = nextStatus;
+    }
+};
+
+const updateQuery = async (): Promise<void> => {
+    const nextQuery = {
+        ...route.query,
+        search: search.value !== '' ? search.value : undefined,
+        status: statusFilter.value !== '' ? statusFilter.value : undefined,
+    };
+
+    await router.replace({ query: nextQuery });
 };
 
 const subscribe = (): void => {
@@ -133,12 +167,21 @@ const subscribe = (): void => {
 
 watch(search, () => {
     window.clearTimeout(searchTimer);
-    searchTimer = window.setTimeout(() => void load(), 300);
+    searchTimer = window.setTimeout(() => void updateQuery(), 300);
+});
+
+watch(statusFilter, () => {
+    void updateQuery();
 });
 
 watch(() => auth.user?.tenant.id, subscribe);
+watch(() => [route.query.search, route.query.status], () => {
+    syncRouteFilters();
+    void load();
+});
 
 onMounted(() => {
+    syncRouteFilters();
     void load();
     subscribe();
 });
@@ -158,6 +201,14 @@ onUnmounted(() => {
                 <button v-if="canCreate" type="button" class="add-button" @click="emit('addWorkflow')">Add Workflow +</button>
             </div>
             <input v-model="search" type="search" placeholder="Search workflows" />
+            <select v-model="statusFilter" aria-label="Filter workflows by latest run status">
+                <option value="">All statuses</option>
+                <option :value="RunStatus.PENDING">Pending</option>
+                <option :value="RunStatus.RUNNING">Running</option>
+                <option :value="RunStatus.COMPLETED">Completed</option>
+                <option :value="RunStatus.FAILED">Failed</option>
+                <option :value="RunStatus.CANCELLED">Cancelled</option>
+            </select>
         </header>
 
         <LoadingSkeleton v-if="workflowStore.loading && workflowStore.workflows.length === 0" :rows="6" height="58px" />
@@ -215,7 +266,7 @@ onUnmounted(() => {
 .workflow-panel {
     flex: 0 0 280px;
     width: 280px;
-    height: 100dvh;
+    height: 100%;
     overflow-y: auto;
     border-right: 1px solid #dbe3ef;
     background: #f7fafc;
@@ -265,6 +316,15 @@ input {
     border-radius: 6px;
     padding: 9px 10px;
     background: white;
+}
+
+select {
+    width: 100%;
+    border: 1px solid #dbe3ef;
+    border-radius: 6px;
+    padding: 9px 10px;
+    background: white;
+    color: #172033;
 }
 
 .workflow-list {

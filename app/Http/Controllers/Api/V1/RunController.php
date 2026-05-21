@@ -22,7 +22,15 @@ class RunController extends Controller
 
     public function index(Request $request): RunCollection
     {
-        return new RunCollection($this->runService->index($request->query()));
+        $filters = $request->validate([
+            'status' => ['nullable', 'string', 'in:pending,running,completed,failed,cancelled'],
+            'workflow_definition_id' => ['nullable', 'uuid'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date'],
+            'cursor' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        return new RunCollection($this->runService->index($filters));
     }
 
     public function show(string $runId): JsonResponse

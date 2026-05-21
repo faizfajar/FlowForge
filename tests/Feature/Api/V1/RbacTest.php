@@ -174,7 +174,7 @@ class RbacTest extends TestCase
     {
         return [
             'steps' => [
-                ['id' => 'A', 'type' => 'SCRIPT', 'config' => ['expression' => '1 + 1'], 'dependencies' => []],
+                ['id' => 'step-a', 'type' => 'SCRIPT', 'name' => 'Step A', 'config' => ['expression' => '1 + 1'], 'dependencies' => []],
             ],
         ];
     }

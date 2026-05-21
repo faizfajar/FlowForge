@@ -18,7 +18,10 @@ class WorkflowResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
+            'schedule_cron' => $this->schedule_cron,
+            'last_scheduled_run_at' => $this->last_scheduled_run_at?->toISOString(),
             'active_version' => $this->whenLoaded('activeVersion', fn () => new WorkflowVersionResource($this->activeVersion)),
+            'last_run' => $this->whenLoaded('runs', fn () => $this->runs->first() === null ? null : new WorkflowRunResource($this->runs->first())),
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

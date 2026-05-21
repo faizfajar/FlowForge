@@ -1,11 +1,11 @@
 import { createApp } from 'vue';
+import { createPinia } from 'pinia';
+import App from './App.vue';
+import { router } from './router';
+import './bootstrap';
+import '../css/app.css';
 
-const app = createApp({
-    template: '<main id="flowforge-app">FlowForge</main>',
-});
-
-try {
-    app.mount('#app');
-} catch (error: unknown) {
-    console.error('Unable to mount FlowForge SPA.', error);
-}
+createApp(App)
+    .use(createPinia())
+    .use(router)
+    .mount('#app');

@@ -12,6 +12,9 @@ use App\Models\WebhookTrigger;
 use App\Models\WorkflowDefinition;
 use App\Models\WorkflowRun;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -30,19 +33,109 @@ class TriggerService
             throw new NotFoundHttpException('Workflow has no active version.');
         }
 
-        $run = WorkflowRun::query()->create([
-            'tenant_id' => $user->tenant_id,
-            'workflow_definition_id' => $definition->id,
-            'workflow_version_id' => $definition->activeVersion->id,
-            'status' => WorkflowRunStatus::PENDING,
-            'trigger_type' => TriggerType::MANUAL,
-            'triggered_by' => $user->id,
-            'metadata' => [],
-        ]);
+        $run = $this->createRun($definition, TriggerType::MANUAL, $user->id, []);
 
         ExecuteWorkflowJob::dispatch($run->id)->onQueue('high');
 
         return $run->load(['definition', 'version']);
+    }
+
+    public function triggerScheduled(WorkflowDefinition $definition): WorkflowRun
+    {
+        if ($definition->activeVersion === null) {
+            throw new NotFoundHttpException('Workflow has no active version.');
+        }
+
+        $run = $this->createRun($definition, TriggerType::SCHEDULED, null, []);
+        ExecuteWorkflowJob::dispatch($run->id)->onQueue('high');
+
+        return $run->load(['definition', 'version']);
+    }
+
+    public function triggerDueScheduledWorkflows(): int
+    {
+        $now = Carbon::now()->startOfMinute();
+        $cron = app(CronExpression::class);
+        $triggered = 0;
+
+        WorkflowDefinition::withoutGlobalScopes()
+            ->with('activeVersion')
+            ->whereNotNull('schedule_cron')
+            ->orderBy('id')
+            ->chunkById(100, function ($definitions) use ($cron, $now, &$triggered): void {
+                foreach ($definitions as $definition) {
+                    if (! $definition instanceof WorkflowDefinition || ! is_string($definition->schedule_cron)) {
+                        continue;
+                    }
+
+                    if ($definition->last_scheduled_run_at?->gte($now) || ! $cron->isDue($definition->schedule_cron, $now)) {
+                        continue;
+                    }
+
+                    DB::transaction(function () use ($definition, $now, &$triggered): void {
+                        $locked = WorkflowDefinition::withoutGlobalScopes()
+                            ->with('activeVersion')
+                            ->lockForUpdate()
+                            ->find($definition->id);
+
+                        if (! $locked instanceof WorkflowDefinition || $locked->last_scheduled_run_at?->gte($now)) {
+                            return;
+                        }
+
+                        $this->triggerScheduled($locked);
+                        $locked->forceFill(['last_scheduled_run_at' => $now])->save();
+                        $triggered++;
+                    });
+                }
+            });
+
+        return $triggered;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function ensureWebhookTrigger(string $workflowId): array
+    {
+        /** @var User $user */
+        $user = request()->user('api') ?? request()->user();
+        $definition = WorkflowDefinition::query()
+            ->where('tenant_id', $user->tenant_id)
+            ->findOrFail($workflowId);
+
+        $trigger = WebhookTrigger::query()->firstOrCreate(
+            [
+                'workflow_definition_id' => $definition->id,
+                'is_active' => true,
+            ],
+            [
+                'tenant_id' => $definition->tenant_id,
+                'token' => Str::random(48),
+                'secret' => Str::random(64),
+            ]
+        );
+
+        return [
+            'token' => $trigger->token,
+            'secret' => $trigger->secret,
+            'url' => url("/api/v1/webhooks/{$trigger->token}/trigger"),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function createRun(WorkflowDefinition $definition, TriggerType $triggerType, ?string $triggeredBy, array $metadata): WorkflowRun
+    {
+        return WorkflowRun::withoutGlobalScopes()->create([
+            'tenant_id' => $definition->tenant_id,
+            'workflow_definition_id' => $definition->id,
+            'workflow_version_id' => $definition->activeVersion->id,
+            'status' => WorkflowRunStatus::PENDING,
+            'trigger_type' => $triggerType,
+            'triggered_by' => $triggeredBy,
+            'metadata' => $metadata,
+        ]);
     }
 
     public function triggerWebhook(string $token, Request $request): WorkflowRun
@@ -65,14 +158,9 @@ class TriggerService
             throw new AccessDeniedHttpException('Invalid webhook signature.');
         }
 
-        $run = WorkflowRun::withoutGlobalScopes()->create([
-            'tenant_id' => $trigger->tenant_id,
-            'workflow_definition_id' => $trigger->workflow_definition_id,
-            'workflow_version_id' => $trigger->workflowDefinition->activeVersion->id,
-            'status' => WorkflowRunStatus::PENDING,
-            'trigger_type' => TriggerType::WEBHOOK,
-            'triggered_by' => null,
-            'metadata' => ['payload' => json_decode($payload, true) ?: []],
+        $decodedPayload = json_decode($payload, true);
+        $run = $this->createRun($trigger->workflowDefinition, TriggerType::WEBHOOK, null, [
+            'payload' => is_array($decodedPayload) ? $decodedPayload : [],
         ]);
 
         ExecuteWorkflowJob::dispatch($run->id)->onQueue('high');

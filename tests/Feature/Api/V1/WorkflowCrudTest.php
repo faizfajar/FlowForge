@@ -37,8 +37,8 @@ class WorkflowCrudTest extends TestCase
             'name' => 'Workflow',
             'dag' => [
                 'steps' => [
-                    ['id' => 'A', 'type' => 'SCRIPT', 'config' => ['expression' => '1'], 'dependencies' => ['B']],
-                    ['id' => 'B', 'type' => 'SCRIPT', 'config' => ['expression' => '1'], 'dependencies' => ['A']],
+                    ['id' => 'step-a', 'type' => 'SCRIPT', 'name' => 'Step A', 'config' => ['expression' => '1'], 'dependencies' => ['step-b']],
+                    ['id' => 'step-b', 'type' => 'SCRIPT', 'name' => 'Step B', 'config' => ['expression' => '1'], 'dependencies' => ['step-a']],
                 ],
             ],
         ])->assertUnprocessable();
@@ -129,7 +129,7 @@ class WorkflowCrudTest extends TestCase
     {
         return [
             'steps' => [
-                ['id' => 'A', 'type' => 'SCRIPT', 'config' => ['expression' => $expression], 'dependencies' => []],
+                ['id' => 'step-a', 'type' => 'SCRIPT', 'name' => 'Step A', 'config' => ['expression' => $expression], 'dependencies' => []],
             ],
         ];
     }

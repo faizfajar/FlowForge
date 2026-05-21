@@ -31,6 +31,17 @@ class TriggerController extends Controller
         ], Response::HTTP_ACCEPTED);
     }
 
+    public function ensureWebhook(string $id): JsonResponse
+    {
+        $workflow = $this->workflowService->show($id);
+        $this->authorize('update', $workflow);
+
+        return response()->json([
+            'data' => $this->triggerService->ensureWebhookTrigger($id),
+            'message' => 'Webhook trigger ready.',
+        ]);
+    }
+
     public function triggerWebhook(string $token, Request $request): JsonResponse
     {
         return response()->json([

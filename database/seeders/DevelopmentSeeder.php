@@ -41,9 +41,10 @@ class DevelopmentSeeder extends Seeder
             for ($workflowIndex = 1; $workflowIndex <= 2; $workflowIndex++) {
                 $definition = WorkflowDefinition::withoutGlobalScopes()->create([
                     'tenant_id' => $tenant->id,
-                    'name' => "{$tenant->name} Workflow {$workflowIndex}",
-                    'description' => 'Sample workflow definition for development.',
-                ]);
+                'name' => "{$tenant->name} Workflow {$workflowIndex}",
+                'description' => 'Sample workflow definition for development.',
+                'schedule_cron' => $workflowIndex === 1 ? null : '*/5 * * * *',
+            ]);
 
                 for ($versionNumber = 1; $versionNumber <= 2; $versionNumber++) {
                     $version = WorkflowVersion::query()->create([
@@ -93,12 +94,11 @@ class DevelopmentSeeder extends Seeder
         return [
             'steps' => [
                 [
-                    'id' => 'fetch',
-                    'type' => StepType::HTTP_CALL->value,
-                    'name' => 'Fetch Data',
+                    'id' => 'prepare',
+                    'type' => StepType::SCRIPT->value,
+                    'name' => 'Prepare Data',
                     'config' => [
-                        'url' => 'https://api.example.com/data',
-                        'method' => 'GET',
+                        'expression' => '40 + 2',
                     ],
                     'dependencies' => [],
                 ],
@@ -107,17 +107,16 @@ class DevelopmentSeeder extends Seeder
                     'type' => StepType::CONDITION->value,
                     'name' => 'Check Value',
                     'config' => [
-                        'expression' => 'response.status == 200',
+                        'expression' => 'prepare["result"] == 42',
                     ],
-                    'dependencies' => ['fetch'],
+                    'dependencies' => ['prepare'],
                 ],
                 [
-                    'id' => 'notify',
-                    'type' => StepType::HTTP_CALL->value,
-                    'name' => 'Send Notification',
+                    'id' => 'wait',
+                    'type' => StepType::DELAY->value,
+                    'name' => 'Wait Briefly',
                     'config' => [
-                        'url' => 'https://hooks.example.com/alert',
-                        'method' => 'POST',
+                        'seconds' => 1,
                     ],
                     'dependencies' => ['check'],
                 ],

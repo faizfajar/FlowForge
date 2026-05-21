@@ -71,7 +71,7 @@ services:
     image: flowforge-app
     restart: unless-stopped
     working_dir: /var/www/html
-    command: php artisan queue:work --queue=high,default
+    command: sh -c "php artisan queue:work --queue=high,default & php artisan queue:work --queue=high,default & php artisan queue:work --queue=high,default & wait"
     volumes:
       - .:/var/www/html
     depends_on:

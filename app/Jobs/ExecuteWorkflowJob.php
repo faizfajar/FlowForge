@@ -21,6 +21,8 @@ class ExecuteWorkflowJob implements ShouldQueue
 {
     use Queueable;
 
+    private const WAVE_POLL_MICROSECONDS = 200_000;
+
     public int $tries = 1;
 
     public int $timeout = 3600;
@@ -47,14 +49,11 @@ class ExecuteWorkflowJob implements ShouldQueue
         try {
             foreach ($parsedDag->parallelGroups as $group) {
                 foreach ($group as $stepId) {
-                    ExecuteStepJob::dispatchSync($run->id, $parsedDag->steps[$stepId]);
+                    ExecuteStepJob::dispatch($run->id, $parsedDag->steps[$stepId])->onQueue('high');
                 }
 
-                $failedStep = StepRun::query()
-                    ->where('workflow_run_id', $run->id)
-                    ->whereIn('step_id', $group)
-                    ->where('status', StepRunStatus::FAILED)
-                    ->first();
+                $this->waitForWave($run, $group);
+                $failedStep = $this->failedStepInWave($run, $group);
 
                 if ($failedStep instanceof StepRun && ! (bool) ($parsedDag->steps[$failedStep->step_id]['optional'] ?? false)) {
                     $run->forceFill([
@@ -87,6 +86,43 @@ class ExecuteWorkflowJob implements ShouldQueue
 
             throw $exception;
         }
+    }
+
+    /**
+     * @param  array<int, string>  $stepIds
+     */
+    private function waitForWave(WorkflowRun $run, array $stepIds): void
+    {
+        while (true) {
+            $completed = StepRun::query()
+                ->where('workflow_run_id', $run->id)
+                ->whereIn('step_id', $stepIds)
+                ->whereIn('status', [
+                    StepRunStatus::SUCCESS,
+                    StepRunStatus::FAILED,
+                    StepRunStatus::SKIPPED,
+                    StepRunStatus::CANCELLED,
+                ])
+                ->count();
+
+            if ($completed >= count($stepIds)) {
+                return;
+            }
+
+            usleep(self::WAVE_POLL_MICROSECONDS);
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $stepIds
+     */
+    private function failedStepInWave(WorkflowRun $run, array $stepIds): ?StepRun
+    {
+        return StepRun::query()
+            ->where('workflow_run_id', $run->id)
+            ->whereIn('step_id', $stepIds)
+            ->where('status', StepRunStatus::FAILED)
+            ->first();
     }
 
     /**

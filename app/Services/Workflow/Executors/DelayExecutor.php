@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Workflow\Executors;
 
 use App\Exceptions\StepExecutionException;
-use App\Jobs\ReleaseDelayedStepJob;
 use App\Models\StepRun;
 use Illuminate\Support\Carbon;
 
@@ -21,7 +20,7 @@ class DelayExecutor implements StepExecutorInterface
         }
 
         $delayedUntil = Carbon::now()->addSeconds($seconds);
-        ReleaseDelayedStepJob::dispatch($stepRun->id)->delay($delayedUntil);
+        sleep($seconds);
 
         return [
             'delayed_until' => $delayedUntil->toISOString(),

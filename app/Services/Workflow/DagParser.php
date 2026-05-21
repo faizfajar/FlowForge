@@ -6,6 +6,7 @@ namespace App\Services\Workflow;
 
 use App\Exceptions\DagCycleException;
 use App\Exceptions\DagValidationException;
+use App\Enums\StepType;
 use App\Services\Workflow\DTOs\ParsedDag;
 
 class DagParser
@@ -32,6 +33,18 @@ class DagParser
 
             if (array_key_exists($step['id'], $steps)) {
                 throw new DagValidationException("Duplicate DAG step id [{$step['id']}].");
+            }
+
+            if (! isset($step['type']) || ! is_string($step['type']) || StepType::tryFrom($step['type']) === null) {
+                throw new DagValidationException("Step [{$step['id']}] has an unsupported type.");
+            }
+
+            if (! isset($step['name']) || ! is_string($step['name']) || trim($step['name']) === '') {
+                throw new DagValidationException("Step [{$step['id']}] must have a non-empty name.");
+            }
+
+            if (! isset($step['config']) || ! is_array($step['config'])) {
+                throw new DagValidationException("Step [{$step['id']}] must have a config object.");
             }
 
             $steps[$step['id']] = $step;

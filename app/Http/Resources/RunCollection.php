@@ -18,6 +18,10 @@ class RunCollection extends ResourceCollection
     {
         return [
             'data' => $this->collection,
+            'meta' => [
+                'next_cursor' => method_exists($this->resource, 'nextCursor') ? $this->resource->nextCursor()?->encode() : null,
+                'per_page' => method_exists($this->resource, 'perPage') ? $this->resource->perPage() : 15,
+            ],
         ];
     }
 }

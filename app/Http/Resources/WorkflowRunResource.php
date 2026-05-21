@@ -21,6 +21,7 @@ class WorkflowRunResource extends JsonResource
                 'name' => $this->definition->name,
             ]),
             'version_number' => $this->whenLoaded('version', fn (): int => (int) $this->version->version_number),
+            'dag' => $this->whenLoaded('version', fn (): mixed => $this->version->dag),
             'status' => $this->status?->value,
             'trigger_type' => $this->trigger_type?->value,
             'started_at' => $this->started_at?->toISOString(),

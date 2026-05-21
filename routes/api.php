@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\AiController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\RunController;
 use App\Http\Controllers\Api\V1\TriggerController;
 use App\Http\Controllers\Api\V1\WorkflowController;
@@ -27,6 +29,10 @@ Route::prefix('v1')->group(function (): void {
         Route::get('workflows/{workflow}/versions', [WorkflowController::class, 'versions']);
         Route::post('workflows/{workflow}/versions/{version}/restore', [WorkflowController::class, 'restoreVersion']);
         Route::post('workflows/{id}/trigger', [TriggerController::class, 'triggerWorkflow']);
+        Route::post('workflows/{id}/webhook', [TriggerController::class, 'ensureWebhook']);
+
+        Route::get('dashboard/stats', [DashboardController::class, 'stats']);
+        Route::post('ai/generate-workflow', [AiController::class, 'generateWorkflow'])->middleware('ai.rate');
 
         Route::get('runs', [RunController::class, 'index']);
         Route::get('runs/{runId}', [RunController::class, 'show']);

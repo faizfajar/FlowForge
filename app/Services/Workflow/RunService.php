@@ -26,10 +26,10 @@ class RunService
         return WorkflowRun::query()
             ->with(['definition', 'version'])
             ->where('tenant_id', $user->tenant_id)
-            ->when(isset($filters['status']), fn (Builder $query): Builder => $query->where('status', $filters['status']))
-            ->when(isset($filters['workflow_definition_id']), fn (Builder $query): Builder => $query->where('workflow_definition_id', $filters['workflow_definition_id']))
-            ->when(isset($filters['date_from']), fn (Builder $query): Builder => $query->where('created_at', '>=', $filters['date_from']))
-            ->when(isset($filters['date_to']), fn (Builder $query): Builder => $query->where('created_at', '<=', $filters['date_to']))
+            ->when(isset($filters['status']) && is_string($filters['status']), fn (Builder $query): Builder => $query->where('status', $filters['status']))
+            ->when(isset($filters['workflow_definition_id']) && is_string($filters['workflow_definition_id']), fn (Builder $query): Builder => $query->where('workflow_definition_id', $filters['workflow_definition_id']))
+            ->when(isset($filters['date_from']) && is_string($filters['date_from']), fn (Builder $query): Builder => $query->where('created_at', '>=', $filters['date_from']))
+            ->when(isset($filters['date_to']) && is_string($filters['date_to']), fn (Builder $query): Builder => $query->where('created_at', '<=', $filters['date_to']))
             ->orderByDesc('created_at')
             ->cursorPaginate(15);
     }

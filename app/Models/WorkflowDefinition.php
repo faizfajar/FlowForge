@@ -18,8 +18,17 @@ class WorkflowDefinition extends Model
         'tenant_id',
         'name',
         'description',
+        'schedule_cron',
+        'last_scheduled_run_at',
         'active_version_id',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'last_scheduled_run_at' => 'datetime',
+        ];
+    }
 
     public function versions(): HasMany
     {
@@ -39,5 +48,10 @@ class WorkflowDefinition extends Model
     public function runs(): HasMany
     {
         return $this->hasMany(WorkflowRun::class);
+    }
+
+    public function webhookTriggers(): HasMany
+    {
+        return $this->hasMany(WebhookTrigger::class);
     }
 }

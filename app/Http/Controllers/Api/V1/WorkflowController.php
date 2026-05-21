@@ -24,11 +24,19 @@ class WorkflowController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $workflows = $this->workflowService->index($request->query());
+        $filters = $request->validate([
+            'name' => ['nullable', 'string', 'max:160'],
+            'status' => ['nullable', 'string', 'in:pending,running,completed,failed,cancelled'],
+            'cursor' => ['nullable', 'string', 'max:500'],
+        ]);
+        $workflows = $this->workflowService->index($filters);
 
         return response()->json([
             'data' => WorkflowResource::collection($workflows->items()),
-            'meta' => ['next_cursor' => $workflows->nextCursor()?->encode()],
+            'meta' => [
+                'next_cursor' => $workflows->nextCursor()?->encode(),
+                'per_page' => $workflows->perPage(),
+            ],
         ]);
     }
 
@@ -79,7 +87,10 @@ class WorkflowController extends Controller
 
         return response()->json([
             'data' => WorkflowVersionResource::collection($versions->items()),
-            'meta' => ['next_cursor' => $versions->nextCursor()?->encode()],
+            'meta' => [
+                'next_cursor' => $versions->nextCursor()?->encode(),
+                'per_page' => $versions->perPage(),
+            ],
         ]);
     }
 

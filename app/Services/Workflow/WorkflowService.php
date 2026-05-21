@@ -22,10 +22,13 @@ class WorkflowService
         $user = $this->currentUser();
 
         return WorkflowDefinition::query()
-            ->with('activeVersion')
+            ->with(['activeVersion', 'runs' => fn ($query) => $query->latest()->limit(1)])
             ->where('tenant_id', $user->tenant_id)
             ->when(isset($filters['name']) && is_string($filters['name']), function (Builder $query) use ($filters): void {
-                $query->where('name', 'like', '%'.$filters['name'].'%');
+                $query->where('name', 'like', '%'.addcslashes($filters['name'], '%_\\').'%');
+            })
+            ->when(isset($filters['status']) && is_string($filters['status']), function (Builder $query) use ($filters): void {
+                $query->whereHas('runs', fn (Builder $runQuery): Builder => $runQuery->where('status', $filters['status']));
             })
             ->orderByDesc('created_at')
             ->cursorPaginate(15);
@@ -44,6 +47,7 @@ class WorkflowService
                 'tenant_id' => $user->tenant_id,
                 'name' => $data['name'],
                 'description' => $data['description'] ?? null,
+                'schedule_cron' => $data['schedule_cron'] ?? null,
             ]);
 
             $version = WorkflowVersion::query()->create([
@@ -85,6 +89,7 @@ class WorkflowService
             $definition->update([
                 'name' => $data['name'],
                 'description' => $data['description'] ?? null,
+                'schedule_cron' => $data['schedule_cron'] ?? null,
             ]);
 
             $definition->versions()->update(['is_active' => false]);

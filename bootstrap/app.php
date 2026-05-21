@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
+            'ai.rate' => App\Http\Middleware\ThrottleAiRequests::class,
             'tenant' => App\Http\Middleware\EnsureTenantAccess::class,
             'tenant.throttle' => App\Http\Middleware\ThrottleByTenant::class,
         ]);

@@ -121,6 +121,16 @@ class DagParserTest extends TestCase
      */
     private function dag(array $steps): array
     {
-        return ['steps' => $steps];
+        return [
+            'steps' => array_map(
+                fn (array $step): array => [
+                    'type' => 'SCRIPT',
+                    'name' => "Step {$step['id']}",
+                    'config' => ['expression' => '1 + 1'],
+                    ...$step,
+                ],
+                $steps
+            ),
+        ];
     }
 }

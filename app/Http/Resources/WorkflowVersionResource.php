@@ -23,7 +23,7 @@ class WorkflowVersionResource extends JsonResource
                 'id' => $this->creator->id,
                 'name' => $this->creator->name,
             ]),
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->created_at?->timezone(config('app.timezone'))->toIso8601String(),
         ];
     }
 }

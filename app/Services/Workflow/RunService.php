@@ -70,7 +70,7 @@ class RunService
 
             foreach ($initialLogs as $log) {
                 $lastLoggedAt = $log->logged_at;
-                echo 'data: '.json_encode($log->toArray())."\n\n";
+                echo 'data: '.json_encode($this->serializeLog($log))."\n\n";
             }
 
             while (! in_array($run->fresh()?->status, [
@@ -90,7 +90,7 @@ class RunService
 
                 foreach ($query->get() as $log) {
                     $lastLoggedAt = $log->logged_at;
-                    echo 'data: '.json_encode($log->toArray())."\n\n";
+                    echo 'data: '.json_encode($this->serializeLog($log))."\n\n";
                 }
 
                 if (ob_get_level() > 0) {
@@ -115,14 +115,23 @@ class RunService
             ->orderBy('logged_at')
             ->limit(200)
             ->get()
-            ->map(fn (ExecutionLog $log): array => [
-                'id' => $log->id,
-                'logged_at' => $log->logged_at?->toISOString(),
-                'level' => $log->level,
-                'message' => $log->message,
-                'step_name' => $log->stepRun?->step_id,
-            ])
+            ->map(fn (ExecutionLog $log): array => $this->serializeLog($log))
             ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeLog(ExecutionLog $log): array
+    {
+        return [
+            'id' => $log->id,
+            'logged_at' => $log->logged_at?->timezone(config('app.timezone'))->toIso8601String(),
+            'level' => $log->level,
+            'message' => $log->message,
+            'step_run_id' => $log->step_run_id,
+            'step_name' => $log->stepRun?->step_id,
+        ];
     }
 
     private function currentUser(): User

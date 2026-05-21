@@ -68,6 +68,14 @@ const normalizeValidationError = (error: AxiosError<ApiError>): ValidationError 
     return validationError;
 };
 
+const isAuthEndpoint = (url?: string): boolean => {
+    if (url === undefined) {
+        return false;
+    }
+
+    return ['/auth/login', '/auth/register', '/auth/refresh'].some((endpoint) => url.includes(endpoint));
+};
+
 api.interceptors.request.use((config) => {
     const token = tokenStorage.getToken();
 
@@ -92,6 +100,7 @@ api.interceptors.response.use(
             || originalRequest === undefined
             || originalRequest._retry
             || originalRequest.skipAuthRefresh
+            || isAuthEndpoint(originalRequest.url)
         ) {
             return Promise.reject(error);
         }

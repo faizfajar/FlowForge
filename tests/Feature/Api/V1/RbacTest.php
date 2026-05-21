@@ -105,6 +105,26 @@ class RbacTest extends TestCase
             ->assertAccepted();
     }
 
+    public function test_dashboard_stats_are_admin_only(): void
+    {
+        $tenant = Tenant::query()->create(['name' => 'Tenant A', 'slug' => 'tenant-a', 'settings' => []]);
+        $admin = $this->createUser('admin@example.com', UserRole::ADMIN, $tenant);
+        $editor = $this->createUser('editor@example.com', UserRole::EDITOR, $tenant);
+        $viewer = $this->createUser('viewer@example.com', UserRole::VIEWER, $tenant);
+
+        $this->actingAsJwt($admin)
+            ->getJson('/api/v1/dashboard/stats')
+            ->assertOk();
+
+        $this->actingAsJwt($editor)
+            ->getJson('/api/v1/dashboard/stats')
+            ->assertForbidden();
+
+        $this->actingAsJwt($viewer)
+            ->getJson('/api/v1/dashboard/stats')
+            ->assertForbidden();
+    }
+
     private function createUser(string $email, UserRole $role, Tenant $tenant): User
     {
         Role::firstOrCreate(['name' => $role->value, 'guard_name' => 'web']);

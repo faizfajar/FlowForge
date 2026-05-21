@@ -24,7 +24,7 @@ class UserResource extends JsonResource
                 'name' => $this->tenant->name,
                 'slug' => $this->tenant->slug,
             ]),
-            'created_at' => $this->created_at?->toISOString(),
+            'created_at' => $this->created_at?->timezone(config('app.timezone'))->toIso8601String(),
         ];
     }
 }

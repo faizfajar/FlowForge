@@ -6,6 +6,8 @@ services:
     image: flowforge-app
     restart: unless-stopped
     working_dir: /var/www/html
+    environment:
+      TZ: Asia/Jakarta
     volumes:
       - .:/var/www/html
     depends_on:
@@ -32,8 +34,10 @@ services:
       POSTGRES_DB: flowforge
       POSTGRES_USER: flowforge
       POSTGRES_PASSWORD: secret
+      TZ: Asia/Jakarta
+      PGTZ: Asia/Jakarta
     ports:
-      - "5432:5432"
+      - "5435:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -59,6 +63,8 @@ services:
     image: flowforge-app
     restart: unless-stopped
     working_dir: /var/www/html
+    environment:
+      TZ: Asia/Jakarta
     command: php artisan reverb:start --host=0.0.0.0
     ports:
       - "8080:8080"
@@ -71,6 +77,8 @@ services:
     image: flowforge-app
     restart: unless-stopped
     working_dir: /var/www/html
+    environment:
+      TZ: Asia/Jakarta
     command: sh -c "php artisan queue:work --queue=high,default & php artisan queue:work --queue=high,default & php artisan queue:work --queue=high,default & wait"
     volumes:
       - .:/var/www/html
@@ -81,6 +89,8 @@ services:
     image: flowforge-app
     restart: unless-stopped
     working_dir: /var/www/html
+    environment:
+      TZ: Asia/Jakarta
     command: php artisan schedule:work
     volumes:
       - .:/var/www/html
@@ -91,6 +101,8 @@ services:
     image: node:20-alpine
     restart: unless-stopped
     working_dir: /var/www/html
+    environment:
+      TZ: Asia/Jakarta
     command: npm run dev -- --host=0.0.0.0
     ports:
       - "5173:5173"

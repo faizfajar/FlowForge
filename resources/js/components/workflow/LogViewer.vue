@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue';
 import type { ExecutionLog } from '../../types/run.types';
+import { formatDateTime } from '../../lib/datetime';
 
 const props = withDefaults(defineProps<{
     logs: ExecutionLog[];
@@ -23,7 +24,7 @@ watch(() => props.logs.length, async () => {
 <template>
     <div ref="container" class="log-viewer">
         <article v-for="log in logs" :key="log.id" class="log-line">
-            <time>{{ log.logged_at }}</time>
+            <time>{{ formatDateTime(log.logged_at) }}</time>
             <span class="level" :class="log.level.toLowerCase()">{{ log.level }}</span>
             <strong v-if="log.step_name">{{ log.step_name }}</strong>
             <span>{{ log.message }}</span>

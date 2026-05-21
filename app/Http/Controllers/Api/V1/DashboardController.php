@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Dashboard\DashboardService;
@@ -20,6 +21,8 @@ class DashboardController extends Controller
     {
         /** @var User $user */
         $user = $request->user('api');
+
+        abort_if($user->role !== UserRole::ADMIN, 403);
 
         return response()->json(['data' => $this->dashboardService->stats($user)]);
     }

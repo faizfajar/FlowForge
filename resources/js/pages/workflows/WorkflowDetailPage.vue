@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import DagVisualizer from '../../components/workflow/DagVisualizer.vue';
 import { api } from '../../lib/axios';
+import { formatDateTime } from '../../lib/datetime';
 import { useAuthStore } from '../../stores/auth';
 import { useWorkflowStore } from '../../stores/workflow';
 import { UserRole } from '../../types/auth.types';
@@ -81,7 +82,7 @@ onMounted(async () => {
         </section>
         <section v-if="tab === 'history'" class="list">
             <RouterLink v-for="run in runs" :key="run.id" :to="`/runs/${run.id}`">
-                {{ run.status }} · {{ run.trigger_type }} · {{ run.started_at ?? 'pending' }}
+                {{ run.status }} · {{ run.trigger_type }} · {{ formatDateTime(run.started_at, 'pending') }}
             </RouterLink>
             <p v-if="runs.length === 0">No runs yet.</p>
         </section>

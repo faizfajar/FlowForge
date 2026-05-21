@@ -116,7 +116,7 @@ PROMPT;
         $response = Http::timeout(20)
             ->withToken($apiKey)
             ->post('https://api.openai.com/v1/chat/completions', [
-                'model' => env('AI_MODEL', 'gpt-4o-mini'),
+                'model' => env('AI_MODEL', 'GPT-5.4'),
                 'temperature' => 0.2,
                 'messages' => [
                     ['role' => 'system', 'content' => self::SYSTEM_PROMPT],

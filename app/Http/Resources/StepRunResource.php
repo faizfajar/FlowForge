@@ -23,8 +23,8 @@ class StepRunResource extends JsonResource
             'output' => $this->output,
             'error' => $this->error,
             'attempt' => $this->attempt,
-            'started_at' => $this->started_at?->toISOString(),
-            'completed_at' => $this->completed_at?->toISOString(),
+            'started_at' => $this->started_at?->timezone(config('app.timezone'))->toIso8601String(),
+            'completed_at' => $this->completed_at?->timezone(config('app.timezone'))->toIso8601String(),
         ];
     }
 }

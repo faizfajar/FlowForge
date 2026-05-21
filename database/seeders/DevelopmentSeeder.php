@@ -11,18 +11,12 @@ use App\Models\WorkflowVersion;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Spatie\Permission\Models\Role;
 
 class DevelopmentSeeder extends Seeder
 {
     public function run(): void
     {
-        foreach (UserRole::cases() as $role) {
-            Role::firstOrCreate([
-                'name' => $role->value,
-                'guard_name' => 'web',
-            ]);
-        }
+        $this->call(RbacSeeder::class);
 
         $tenants = [
             ['name' => 'Acme Corp', 'slug' => 'acme-corp'],
@@ -33,7 +27,7 @@ class DevelopmentSeeder extends Seeder
             $tenant = Tenant::query()->create([
                 'name' => $tenantData['name'],
                 'slug' => $tenantData['slug'],
-                'settings' => ['timezone' => 'UTC'],
+                'settings' => ['timezone' => 'Asia/Jakarta'],
             ]);
 
             $users = $this->createUsersForTenant($tenant);
@@ -41,10 +35,10 @@ class DevelopmentSeeder extends Seeder
             for ($workflowIndex = 1; $workflowIndex <= 2; $workflowIndex++) {
                 $definition = WorkflowDefinition::withoutGlobalScopes()->create([
                     'tenant_id' => $tenant->id,
-                'name' => "{$tenant->name} Workflow {$workflowIndex}",
-                'description' => 'Sample workflow definition for development.',
-                'schedule_cron' => $workflowIndex === 1 ? null : '*/5 * * * *',
-            ]);
+                    'name' => "{$tenant->name} Order Review {$workflowIndex}",
+                    'description' => 'Sample order review workflow for queue monitoring.',
+                    'schedule_cron' => $workflowIndex === 1 ? null : '*/5 * * * *',
+                ]);
 
                 for ($versionNumber = 1; $versionNumber <= 2; $versionNumber++) {
                     $version = WorkflowVersion::query()->create([
@@ -94,31 +88,49 @@ class DevelopmentSeeder extends Seeder
         return [
             'steps' => [
                 [
-                    'id' => 'prepare',
+                    'id' => 'order',
                     'type' => StepType::SCRIPT->value,
-                    'name' => 'Prepare Data',
+                    'name' => 'Load Order Reference',
                     'config' => [
-                        'expression' => '40 + 2',
+                        'expression' => '"FF-ORDER-20260521-0001"',
                     ],
                     'dependencies' => [],
                 ],
                 [
-                    'id' => 'check',
-                    'type' => StepType::CONDITION->value,
-                    'name' => 'Check Value',
+                    'id' => 'amount',
+                    'type' => StepType::SCRIPT->value,
+                    'name' => 'Calculate Order Amount',
                     'config' => [
-                        'expression' => 'prepare["result"] == 42',
+                        'expression' => '1575000',
                     ],
-                    'dependencies' => ['prepare'],
+                    'dependencies' => [],
+                ],
+                [
+                    'id' => 'risk',
+                    'type' => StepType::CONDITION->value,
+                    'name' => 'Check Manual Review Threshold',
+                    'config' => [
+                        'expression' => 'amount["result"] >= 1000000',
+                    ],
+                    'dependencies' => ['amount'],
                 ],
                 [
                     'id' => 'wait',
                     'type' => StepType::DELAY->value,
-                    'name' => 'Wait Briefly',
+                    'name' => 'Hold Queue Before Notification',
                     'config' => [
-                        'seconds' => 1,
+                        'seconds' => 2,
                     ],
-                    'dependencies' => ['check'],
+                    'dependencies' => ['risk'],
+                ],
+                [
+                    'id' => 'notify',
+                    'type' => StepType::SCRIPT->value,
+                    'name' => 'Build Review Notification Payload',
+                    'config' => [
+                        'expression' => '"manual-review-notification-created"',
+                    ],
+                    'dependencies' => ['order', 'wait'],
                 ],
             ],
         ];

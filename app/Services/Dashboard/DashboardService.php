@@ -25,7 +25,7 @@ class DashboardService
         $totalCompleted = $completed->count();
         $averageExecutionTime = $completed
             ->filter(fn (WorkflowRun $run): bool => $run->started_at !== null && $run->completed_at !== null)
-            ->avg(fn (WorkflowRun $run): int => $run->started_at->diffInSeconds($run->completed_at));
+            ->avg(fn (WorkflowRun $run): int => (int) $run->started_at->diffInSeconds($run->completed_at));
 
         return [
             'active_runs_count' => WorkflowRun::query()
@@ -49,7 +49,7 @@ class DashboardService
                 ->map(fn (WorkflowRun $run): array => [
                     'id' => $run->id,
                     'workflow_name' => $run->definition?->name ?? 'Unknown workflow',
-                    'failed_at' => $run->completed_at?->toISOString(),
+                    'failed_at' => $run->completed_at?->timezone(config('app.timezone'))->toIso8601String(),
                 ])
                 ->all(),
         ];

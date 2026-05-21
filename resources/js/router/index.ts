@@ -17,7 +17,7 @@ const routes: RouteRecordRaw[] = [
         component: AppLayout,
         children: [
             { path: '', redirect: '/dashboard' },
-            { path: 'dashboard', component: DashboardPage, meta: { requiresAuth: true } },
+            { path: 'dashboard', component: DashboardPage, meta: { requiresAuth: true, roles: [UserRole.ADMIN] } },
             { path: 'workflows', component: WorkflowListPage, meta: { requiresAuth: true } },
             {
                 path: 'workflows/create',
@@ -61,7 +61,7 @@ router.beforeEach(async (to) => {
 
     const roles = to.meta.roles as UserRole[] | undefined;
     if (roles !== undefined && auth.user !== null && !roles.includes(auth.user.role)) {
-        return '/dashboard';
+        return auth.user.role === UserRole.ADMIN ? '/dashboard' : '/workflows';
     }
 
     return true;

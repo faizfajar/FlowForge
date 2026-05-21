@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { api } from '../lib/axios';
+import { formatDateTime, formatDurationMs } from '../lib/datetime';
 import type { ApiResponse } from '../types/api.types';
 
 interface DashboardStats {
@@ -37,7 +38,7 @@ onUnmounted(() => {
         <div v-if="stats" class="stats">
             <RouterLink to="/runs?status=RUNNING" class="stat"><span>Active runs</span><strong>{{ stats.active_runs_count }}</strong></RouterLink>
             <article class="stat"><span>Success rate 24h</span><strong>{{ stats.success_rate_last_24h }}%</strong></article>
-            <article class="stat"><span>Avg execution 24h</span><strong>{{ stats.average_execution_time_last_24h }}s</strong></article>
+            <article class="stat"><span>Avg execution 24h</span><strong>{{ formatDurationMs(stats.average_execution_time_last_24h * 1000) }}</strong></article>
             <article class="stat"><span>Total today</span><strong>{{ stats.total_runs_today }}</strong></article>
         </div>
         <svg v-if="stats" viewBox="0 0 600 180" class="chart" role="img" aria-label="Runs per hour">
@@ -54,7 +55,7 @@ onUnmounted(() => {
         <section v-if="stats">
             <h2>Recent failed runs</h2>
             <RouterLink v-for="run in stats.recent_failed_runs" :key="run.id" :to="`/runs/${run.id}`" class="failed-run">
-                {{ run.workflow_name }} · {{ run.failed_at ?? 'unknown' }}
+                {{ run.workflow_name }} · {{ formatDateTime(run.failed_at, 'unknown') }}
             </RouterLink>
         </section>
     </section>

@@ -24,11 +24,11 @@ class WorkflowRunResource extends JsonResource
             'dag' => $this->whenLoaded('version', fn (): mixed => $this->version->dag),
             'status' => $this->status?->value,
             'trigger_type' => $this->trigger_type?->value,
-            'started_at' => $this->started_at?->toISOString(),
-            'completed_at' => $this->completed_at?->toISOString(),
+            'started_at' => $this->started_at?->timezone(config('app.timezone'))->toIso8601String(),
+            'completed_at' => $this->completed_at?->timezone(config('app.timezone'))->toIso8601String(),
             'duration_seconds' => $this->started_at === null || $this->completed_at === null
                 ? null
-                : $this->started_at->diffInSeconds($this->completed_at),
+                : (int) $this->started_at->diffInSeconds($this->completed_at),
             'step_runs' => $this->whenLoaded('stepRuns', fn () => StepRunResource::collection($this->stepRuns)),
         ];
     }

@@ -45,5 +45,6 @@ export interface ExecutionLog {
     logged_at: string;
     level: 'INFO' | 'WARNING' | 'ERROR' | string;
     message: string;
+    step_run_id?: string | null;
     step_name?: string | null;
 }

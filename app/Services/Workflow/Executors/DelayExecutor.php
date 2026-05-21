@@ -23,7 +23,7 @@ class DelayExecutor implements StepExecutorInterface
         sleep($seconds);
 
         return [
-            'delayed_until' => $delayedUntil->toISOString(),
+            'delayed_until' => $delayedUntil->timezone(config('app.timezone'))->toIso8601String(),
         ];
     }
 }

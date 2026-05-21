@@ -7,10 +7,10 @@ namespace App\Http\Controllers\Api\V1;
 use App\Exceptions\AiGenerationException;
 use App\Exceptions\AiUnavailableException;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Ai\GenerateWorkflowRequest;
 use App\Models\User;
 use App\Services\Ai\WorkflowGeneratorService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class AiController extends Controller
 {
@@ -18,11 +18,9 @@ class AiController extends Controller
     {
     }
 
-    public function generateWorkflow(Request $request): JsonResponse
+    public function generateWorkflow(GenerateWorkflowRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'prompt' => ['required', 'string', 'max:400'],
-        ]);
+        $validated = $request->validated();
 
         /** @var User $user */
         $user = $request->user('api');

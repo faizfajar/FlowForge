@@ -40,6 +40,12 @@ class ExecuteWorkflowJob implements ShouldQueue
             return;
         }
 
+        if ($this->isTimedOut($run)) {
+            $this->markTimedOut($run);
+
+            return;
+        }
+
         $dag = is_array($run->version?->dag) ? $run->version->dag : [];
         $parsedDag = $dagParser->parse($dag);
 
@@ -54,6 +60,12 @@ class ExecuteWorkflowJob implements ShouldQueue
         try {
             foreach ($parsedDag->parallelGroups as $group) {
                 if ($this->isCancelled($run)) {
+                    return;
+                }
+
+                if ($this->isTimedOut($run)) {
+                    $this->markTimedOut($run);
+
                     return;
                 }
 
@@ -92,6 +104,12 @@ class ExecuteWorkflowJob implements ShouldQueue
                 return;
             }
 
+            if ($this->isTimedOut($run)) {
+                $this->markTimedOut($run);
+
+                return;
+            }
+
             $run->forceFill([
                 'status' => WorkflowRunStatus::FAILED,
                 'completed_at' => Carbon::now(),
@@ -111,6 +129,12 @@ class ExecuteWorkflowJob implements ShouldQueue
     {
         while (true) {
             if ($this->isCancelled($run)) {
+                return false;
+            }
+
+            if ($this->isTimedOut($run)) {
+                $this->markTimedOut($run);
+
                 return false;
             }
 
@@ -163,5 +187,38 @@ class ExecuteWorkflowJob implements ShouldQueue
     private function isCancelled(WorkflowRun $run): bool
     {
         return $run->fresh()?->status === WorkflowRunStatus::CANCELLED;
+    }
+
+    private function isTimedOut(WorkflowRun $run): bool
+    {
+        $fresh = $run->fresh();
+
+        return $fresh?->timeout_at !== null
+            && $fresh->timeout_at->isPast()
+            && ! in_array($fresh->status, [WorkflowRunStatus::COMPLETED, WorkflowRunStatus::FAILED, WorkflowRunStatus::CANCELLED], true);
+    }
+
+    private function markTimedOut(WorkflowRun $run): void
+    {
+        $completedAt = Carbon::now();
+
+        StepRun::query()
+            ->where('workflow_run_id', $run->id)
+            ->whereIn('status', [StepRunStatus::PENDING, StepRunStatus::RUNNING])
+            ->update([
+                'status' => StepRunStatus::FAILED,
+                'error' => 'Workflow run exceeded the global timeout.',
+                'completed_at' => $completedAt,
+            ]);
+
+        $run->forceFill([
+            'status' => WorkflowRunStatus::FAILED,
+            'completed_at' => $completedAt,
+        ])->save();
+
+        $this->log($run, 'error', 'Workflow run timed out.', [
+            'timeout_at' => $run->timeout_at?->timezone(config('app.timezone'))->toIso8601String(),
+        ]);
+        event(new WorkflowRunCompleted($run->refresh()));
     }
 }

@@ -27,7 +27,7 @@ class DelayExecutor implements StepExecutorInterface
         $remainingMicroseconds = $seconds * 1_000_000;
 
         while ($remainingMicroseconds > 0) {
-            if ($this->isCancelled($stepRun->workflow_run_id)) {
+            if ($this->shouldStop($stepRun->workflow_run_id)) {
                 throw new StepExecutionException('Workflow run cancelled.');
             }
 
@@ -41,11 +41,18 @@ class DelayExecutor implements StepExecutorInterface
         ];
     }
 
-    private function isCancelled(string $workflowRunId): bool
+    private function shouldStop(string $workflowRunId): bool
     {
-        return WorkflowRun::query()
-            ->whereKey($workflowRunId)
-            ->where('status', WorkflowRunStatus::CANCELLED)
-            ->exists();
+        $run = WorkflowRun::query()->find($workflowRunId);
+
+        if (! $run instanceof WorkflowRun) {
+            return true;
+        }
+
+        if ($run->status === WorkflowRunStatus::CANCELLED) {
+            return true;
+        }
+
+        return $run->timeout_at !== null && $run->timeout_at->isPast();
     }
 }

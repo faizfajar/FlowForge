@@ -127,6 +127,8 @@ class TriggerService
      */
     private function createRun(WorkflowDefinition $definition, TriggerType $triggerType, ?string $triggeredBy, array $metadata): WorkflowRun
     {
+        $timeoutSeconds = max(1, (int) config('workflow.run_timeout_seconds', 1800));
+
         return WorkflowRun::withoutGlobalScopes()->create([
             'tenant_id' => $definition->tenant_id,
             'workflow_definition_id' => $definition->id,
@@ -134,6 +136,7 @@ class TriggerService
             'status' => WorkflowRunStatus::PENDING,
             'trigger_type' => $triggerType,
             'triggered_by' => $triggeredBy,
+            'timeout_at' => now()->addSeconds($timeoutSeconds),
             'metadata' => $metadata,
         ]);
     }

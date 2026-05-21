@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Enums\StepRunStatus;
 use App\Enums\StepType;
+use App\Enums\WorkflowRunStatus;
 use App\Events\Workflow\WorkflowStepCompleted;
 use App\Events\Workflow\WorkflowStepFailed;
 use App\Events\Workflow\WorkflowStepStarted;
@@ -53,6 +54,10 @@ class ExecuteStepJob implements ShouldQueue
             return;
         }
 
+        if ($this->isTimedOut($run)) {
+            return;
+        }
+
         $stepRun = StepRun::query()->firstOrNew([
             'workflow_run_id' => $run->id,
             'step_id' => $stepId,
@@ -85,6 +90,12 @@ class ExecuteStepJob implements ShouldQueue
                 return;
             }
 
+            if ($this->isTimedOut($run)) {
+                $this->markTimedOut($run, $stepRun);
+
+                return;
+            }
+
             $stepRun->forceFill([
                 'status' => StepRunStatus::SUCCESS,
                 'output' => $output,
@@ -97,6 +108,12 @@ class ExecuteStepJob implements ShouldQueue
             if ($this->isCancelled($run)) {
                 $this->markCancelled($stepRun);
                 $this->log($run, $stepRun, 'warning', 'Step cancelled.', ['error' => $exception->getMessage()]);
+
+                return;
+            }
+
+            if ($this->isTimedOut($run)) {
+                $this->markTimedOut($run, $stepRun);
 
                 return;
             }
@@ -173,6 +190,27 @@ class ExecuteStepJob implements ShouldQueue
 
     private function isCancelled(WorkflowRun $run): bool
     {
-        return $run->fresh()?->status === \App\Enums\WorkflowRunStatus::CANCELLED;
+        return $run->fresh()?->status === WorkflowRunStatus::CANCELLED;
+    }
+
+    private function isTimedOut(WorkflowRun $run): bool
+    {
+        $fresh = $run->fresh();
+
+        return $fresh?->timeout_at !== null
+            && $fresh->timeout_at->isPast()
+            && $fresh->status !== WorkflowRunStatus::CANCELLED;
+    }
+
+    private function markTimedOut(WorkflowRun $run, StepRun $stepRun): void
+    {
+        $stepRun->forceFill([
+            'status' => StepRunStatus::FAILED,
+            'error' => 'Workflow run exceeded the global timeout.',
+            'completed_at' => Carbon::now(),
+        ])->save();
+
+        $this->log($run, $stepRun, 'error', 'Step failed because the workflow run timed out.');
+        event(new WorkflowStepFailed($run->refresh(), $stepRun->refresh()));
     }
 }

@@ -35,6 +35,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     addWorkflow: [];
+    editWorkflow: [workflowId: string];
     selectWorkflow: [workflowId: string];
     selectRun: [runId: string];
     runTriggered: [workflowId: string, runId: string];
@@ -177,16 +178,24 @@ onUnmounted(() => {
                 <span class="item-meta">
                     <StepStatusBadge v-if="statusOf(workflow) !== null" :status="statusOf(workflow) as RunStatus" />
                     <span v-else class="ready-badge">ready</span>
-                    <button
-                        v-if="canTrigger"
-                        type="button"
-                        class="trigger-button"
-                        :disabled="triggeringWorkflowId !== null"
-                        @click.stop="requestTrigger(workflow)"
-                    >
-                        <span v-if="triggeringWorkflowId === workflow.id" class="spinner"></span>
-                        <span>{{ triggeringWorkflowId === workflow.id ? 'Running' : 'Run' }}</span>
-                    </button>
+                    <span v-if="canTrigger" class="item-actions">
+                        <button
+                            type="button"
+                            class="secondary-button"
+                            @click.stop="emit('editWorkflow', workflow.id)"
+                        >
+                            Edit
+                        </button>
+                        <button
+                            type="button"
+                            class="trigger-button"
+                            :disabled="triggeringWorkflowId !== null"
+                            @click.stop="requestTrigger(workflow)"
+                        >
+                            <span v-if="triggeringWorkflowId === workflow.id" class="spinner"></span>
+                            <span>{{ triggeringWorkflowId === workflow.id ? 'Running' : 'Run' }}</span>
+                        </button>
+                    </span>
                 </span>
             </button>
         </section>
@@ -316,18 +325,35 @@ time {
     font-weight: 700;
 }
 
+.item-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.secondary-button,
 .trigger-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    border: 1px solid #0f766e;
     border-radius: 6px;
-    background: white;
     padding: 4px 8px;
-    color: #0f766e;
     font-size: 12px;
     cursor: pointer;
+}
+
+.secondary-button {
+    border: 1px solid #dbe3ef;
+    background: white;
+    color: #172033;
+}
+
+.trigger-button {
+    border: 1px solid #0f766e;
+    background: white;
+    color: #0f766e;
 }
 
 .trigger-button:disabled {
@@ -359,9 +385,13 @@ time {
     }
 
     .item-meta {
-        grid-template-columns: auto auto;
+        grid-template-columns: auto minmax(0, 1fr);
         align-items: center;
         justify-content: space-between;
+    }
+
+    .item-actions {
+        justify-content: flex-end;
     }
 }
 
@@ -378,6 +408,20 @@ time {
 
     .add-button {
         width: 100%;
+        min-height: 34px;
+    }
+
+    .item-meta {
+        grid-template-columns: 1fr;
+    }
+
+    .item-actions {
+        justify-content: stretch;
+    }
+
+    .secondary-button,
+    .trigger-button {
+        flex: 1 1 0;
         min-height: 34px;
     }
 }

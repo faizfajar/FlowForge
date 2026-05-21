@@ -11,7 +11,8 @@ const auth = useAuthStore();
 const selectedWorkflowId = ref<string | null>(null);
 const selectedRunId = ref<string | null>(null);
 const runRefreshKey = ref(0);
-const editorMode = ref<'create' | null>(null);
+const editorMode = ref<'create' | 'edit' | null>(null);
+const editingWorkflowId = ref<string | null>(null);
 const canCreateWorkflow = computed(() => auth.user?.role === UserRole.ADMIN || auth.user?.role === UserRole.EDITOR);
 
 const openCreateWorkflow = (): void => {
@@ -20,12 +21,25 @@ const openCreateWorkflow = (): void => {
     }
 
     editorMode.value = 'create';
+    editingWorkflowId.value = null;
     selectedWorkflowId.value = null;
+    selectedRunId.value = null;
+};
+
+const openEditWorkflow = (workflowId: string): void => {
+    if (!canCreateWorkflow.value) {
+        return;
+    }
+
+    editorMode.value = 'edit';
+    editingWorkflowId.value = workflowId;
+    selectedWorkflowId.value = workflowId;
     selectedRunId.value = null;
 };
 
 const selectWorkflow = (workflowId: string): void => {
     editorMode.value = null;
+    editingWorkflowId.value = null;
     selectedWorkflowId.value = workflowId;
 };
 
@@ -35,6 +49,7 @@ const selectRun = (runId: string): void => {
 
 const handleRunTriggered = (workflowId: string, runId: string): void => {
     editorMode.value = null;
+    editingWorkflowId.value = null;
     selectedWorkflowId.value = workflowId;
     selectedRunId.value = runId;
     runRefreshKey.value++;
@@ -42,6 +57,7 @@ const handleRunTriggered = (workflowId: string, runId: string): void => {
 
 const handleWorkflowSaved = (workflowId: string): void => {
     editorMode.value = null;
+    editingWorkflowId.value = null;
     selectedWorkflowId.value = workflowId;
     selectedRunId.value = null;
 };
@@ -56,6 +72,7 @@ watch(selectedWorkflowId, () => {
         <WorkflowPanel
             :selected-workflow-id="selectedWorkflowId"
             @add-workflow="openCreateWorkflow"
+            @edit-workflow="openEditWorkflow"
             @select-workflow="selectWorkflow"
             @select-run="selectRun"
             @run-triggered="handleRunTriggered"
@@ -68,10 +85,11 @@ watch(selectedWorkflowId, () => {
             @select-run="selectRun"
         />
         <WorkflowEditorPage
-            v-if="editorMode === 'create'"
+            v-if="editorMode !== null"
             embedded
+            :workflow-id-override="editorMode === 'edit' ? editingWorkflowId : null"
             @saved="handleWorkflowSaved"
-            @cancel="editorMode = null"
+            @cancel="editorMode = null; editingWorkflowId = null"
         />
         <TracePanel v-else-if="selectedRunId !== null" :run-id="selectedRunId" />
         <section v-else class="empty-panel">

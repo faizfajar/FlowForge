@@ -35,6 +35,11 @@ class ExecuteWorkflowJob implements ShouldQueue
     public function handle(DagParser $dagParser): void
     {
         $run = WorkflowRun::query()->with('version')->findOrFail($this->workflowRunId);
+
+        if ($this->isCancelled($run)) {
+            return;
+        }
+
         $dag = is_array($run->version?->dag) ? $run->version->dag : [];
         $parsedDag = $dagParser->parse($dag);
 
@@ -48,11 +53,18 @@ class ExecuteWorkflowJob implements ShouldQueue
 
         try {
             foreach ($parsedDag->parallelGroups as $group) {
+                if ($this->isCancelled($run)) {
+                    return;
+                }
+
                 foreach ($group as $stepId) {
                     ExecuteStepJob::dispatch($run->id, $parsedDag->steps[$stepId])->onQueue('high');
                 }
 
-                $this->waitForWave($run, $group);
+                if (! $this->waitForWave($run, $group)) {
+                    return;
+                }
+
                 $failedStep = $this->failedStepInWave($run, $group);
 
                 if ($failedStep instanceof StepRun && ! (bool) ($parsedDag->steps[$failedStep->step_id]['optional'] ?? false)) {
@@ -76,6 +88,10 @@ class ExecuteWorkflowJob implements ShouldQueue
             $this->log($run, 'info', 'Workflow run completed.');
             event(new WorkflowRunCompleted($run->refresh()));
         } catch (Throwable $exception) {
+            if ($this->isCancelled($run)) {
+                return;
+            }
+
             $run->forceFill([
                 'status' => WorkflowRunStatus::FAILED,
                 'completed_at' => Carbon::now(),
@@ -91,9 +107,13 @@ class ExecuteWorkflowJob implements ShouldQueue
     /**
      * @param  array<int, string>  $stepIds
      */
-    private function waitForWave(WorkflowRun $run, array $stepIds): void
+    private function waitForWave(WorkflowRun $run, array $stepIds): bool
     {
         while (true) {
+            if ($this->isCancelled($run)) {
+                return false;
+            }
+
             $completed = StepRun::query()
                 ->where('workflow_run_id', $run->id)
                 ->whereIn('step_id', $stepIds)
@@ -106,7 +126,7 @@ class ExecuteWorkflowJob implements ShouldQueue
                 ->count();
 
             if ($completed >= count($stepIds)) {
-                return;
+                return true;
             }
 
             usleep(self::WAVE_POLL_MICROSECONDS);
@@ -138,5 +158,10 @@ class ExecuteWorkflowJob implements ShouldQueue
             'context' => $context,
             'logged_at' => Carbon::now(),
         ]);
+    }
+
+    private function isCancelled(WorkflowRun $run): bool
+    {
+        return $run->fresh()?->status === WorkflowRunStatus::CANCELLED;
     }
 }

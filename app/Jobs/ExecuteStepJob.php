@@ -49,10 +49,18 @@ class ExecuteStepJob implements ShouldQueue
         $stepType = StepType::from((string) $this->step['type']);
         $config = is_array($this->step['config'] ?? null) ? $this->step['config'] : [];
 
+        if ($this->isCancelled($run)) {
+            return;
+        }
+
         $stepRun = StepRun::query()->firstOrNew([
             'workflow_run_id' => $run->id,
             'step_id' => $stepId,
         ]);
+
+        if ($stepRun->exists && $stepRun->status === StepRunStatus::CANCELLED) {
+            return;
+        }
 
         $stepRun->fill([
             'step_type' => $stepType,
@@ -70,6 +78,13 @@ class ExecuteStepJob implements ShouldQueue
         try {
             $output = $executorFactory->make($stepType)->execute($stepRun, $this->previousOutputs($run));
 
+            if ($this->isCancelled($run)) {
+                $this->markCancelled($stepRun);
+                $this->log($run, $stepRun, 'warning', 'Step cancelled.');
+
+                return;
+            }
+
             $stepRun->forceFill([
                 'status' => StepRunStatus::SUCCESS,
                 'output' => $output,
@@ -79,6 +94,33 @@ class ExecuteStepJob implements ShouldQueue
             $this->log($run, $stepRun, 'info', 'Step completed.', ['output' => $output]);
             event(new WorkflowStepCompleted($run->refresh(), $stepRun->refresh()));
         } catch (Throwable $exception) {
+            if ($this->isCancelled($run)) {
+                $this->markCancelled($stepRun);
+                $this->log($run, $stepRun, 'warning', 'Step cancelled.', ['error' => $exception->getMessage()]);
+
+                return;
+            }
+
+            $hasRetriesRemaining = $this->attempts() < $this->tries;
+
+            if ($hasRetriesRemaining) {
+                $stepRun->forceFill([
+                    'status' => StepRunStatus::RUNNING,
+                    'error' => $exception->getMessage(),
+                    'completed_at' => null,
+                ])->save();
+
+                $this->log(
+                    $run,
+                    $stepRun,
+                    'warning',
+                    sprintf('Step failed, retrying attempt %d/%d.', $this->attempts(), $this->tries),
+                    ['error' => $exception->getMessage()]
+                );
+
+                throw $exception;
+            }
+
             $stepRun->forceFill([
                 'status' => StepRunStatus::FAILED,
                 'error' => $exception->getMessage(),
@@ -118,5 +160,19 @@ class ExecuteStepJob implements ShouldQueue
             'context' => $context,
             'logged_at' => Carbon::now(),
         ]);
+    }
+
+    private function markCancelled(StepRun $stepRun): void
+    {
+        $stepRun->forceFill([
+            'status' => StepRunStatus::CANCELLED,
+            'error' => 'Workflow run cancelled.',
+            'completed_at' => Carbon::now(),
+        ])->save();
+    }
+
+    private function isCancelled(WorkflowRun $run): bool
+    {
+        return $run->fresh()?->status === \App\Enums\WorkflowRunStatus::CANCELLED;
     }
 }

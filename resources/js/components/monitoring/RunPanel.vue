@@ -35,7 +35,6 @@ const auth = useAuthStore();
 const runs = ref<WorkflowRun[]>([]);
 const loading = ref(false);
 const activeChannel = ref<string | null>(null);
-const pollTimer = ref<number | null>(null);
 const channelName = computed(() => auth.user === null ? null : `tenant.${auth.user.tenant.id}.workflow.${props.workflowId}`);
 
 const duration = (run: WorkflowRun): string => {
@@ -104,26 +103,6 @@ const subscribe = (): void => {
         });
 };
 
-const clearPolling = (): void => {
-    if (pollTimer.value !== null) {
-        window.clearInterval(pollTimer.value);
-        pollTimer.value = null;
-    }
-};
-
-const ensurePolling = (): void => {
-    const hasActiveRun = runs.value.some((run) => run.status === RunStatus.PENDING || run.status === RunStatus.RUNNING);
-
-    if (!hasActiveRun) {
-        clearPolling();
-        return;
-    }
-
-    if (pollTimer.value === null) {
-        pollTimer.value = window.setInterval(() => void loadRuns(), 2000);
-    }
-};
-
 const unsubscribe = (): void => {
     if (window.Echo !== undefined && activeChannel.value !== null) {
         window.Echo.leave(activeChannel.value);
@@ -132,20 +111,15 @@ const unsubscribe = (): void => {
 };
 
 watch(() => props.workflowId, async () => {
-    clearPolling();
     await loadRuns();
     subscribe();
-    ensurePolling();
 }, { immediate: true });
 
 watch(() => props.refreshKey, () => {
     void loadRuns();
 });
 
-watch(() => runs.value.map((run) => `${run.id}:${run.status}`).join('|'), ensurePolling);
-
 onUnmounted(() => {
-    clearPolling();
     unsubscribe();
 });
 </script>
@@ -185,11 +159,14 @@ onUnmounted(() => {
 
 <style scoped>
 .run-panel {
+    flex: 0 0 340px;
     width: 340px;
-    height: 100vh;
+    height: 100dvh;
     overflow-y: auto;
     border-right: 1px solid #dbe3ef;
     background: white;
+    scroll-snap-align: start;
+    scrollbar-gutter: stable;
 }
 
 .panel-header {
@@ -263,5 +240,25 @@ h2 {
 
 @keyframes pulse {
     50% { box-shadow: 0 0 0 7px rgb(15 118 110 / 14%); }
+}
+
+@media (max-width: 1180px) {
+    .run-panel {
+        flex-basis: 320px;
+        width: 320px;
+    }
+}
+
+@media (max-width: 720px) {
+    .run-panel {
+        flex-basis: min(86vw, 340px);
+        width: min(86vw, 340px);
+    }
+
+    .run-top,
+    .run-bottom {
+        align-items: flex-start;
+        flex-direction: column;
+    }
 }
 </style>

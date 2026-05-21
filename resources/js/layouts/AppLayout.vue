@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import { RouterLink, RouterView } from 'vue-router';
-import { UserRole } from '../types/auth.types';
 import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
-const canEdit = computed(() => auth.user?.role === UserRole.ADMIN || auth.user?.role === UserRole.EDITOR);
 </script>
 
 <template>
@@ -15,7 +12,6 @@ const canEdit = computed(() => auth.user?.role === UserRole.ADMIN || auth.user?.
             <nav>
                 <RouterLink to="/dashboard">Dashboard</RouterLink>
                 <RouterLink to="/workflows">Workflows</RouterLink>
-                <RouterLink v-if="canEdit" to="/workflows/create">Create</RouterLink>
             </nav>
             <button type="button" @click="auth.logout">Logout</button>
         </aside>
@@ -64,5 +60,49 @@ const canEdit = computed(() => auth.user?.role === UserRole.ADMIN || auth.user?.
 
 .content {
     padding: 28px;
+    min-width: 0;
+}
+
+.content:has(.monitoring-page) {
+    padding: 0;
+    overflow: hidden;
+}
+
+@media (max-width: 900px) {
+    .app-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+
+    .sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        flex-direction: row;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 14px;
+    }
+
+    .sidebar nav {
+        display: flex;
+        flex: 1;
+        gap: 12px;
+        overflow-x: auto;
+    }
+
+    .sidebar button {
+        margin-top: 0;
+        white-space: nowrap;
+    }
+
+    .content:has(.monitoring-page) .monitoring-page,
+    .content:has(.monitoring-page) .workflow-panel,
+    .content:has(.monitoring-page) .run-panel,
+    .content:has(.monitoring-page) .trace-panel,
+    .content:has(.monitoring-page) .page.embedded,
+    .content:has(.monitoring-page) .empty-panel {
+        height: calc(100dvh - 57px);
+    }
 }
 </style>

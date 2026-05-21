@@ -5,6 +5,7 @@ import type { ApiResponse } from '../types/api.types';
 import { RunStatus, type StepRun, type WorkflowRun } from '../types/run.types';
 
 type RunPatch = Partial<WorkflowRun> & { id: string };
+type StepRunPatch = Partial<StepRun> & { id: string; step_id: string };
 
 export const useRunStore = defineStore('run', () => {
     const currentRun = ref<WorkflowRun | null>(null);
@@ -25,15 +26,15 @@ export const useRunStore = defineStore('run', () => {
         currentRun.value = response.data.data;
     };
 
-    const updateStepRun = (stepRun: StepRun): void => {
+    const updateStepRun = (stepRun: StepRunPatch): void => {
         if (currentRun.value === null) {
             return;
         }
 
         const exists = currentRun.value.step_runs.some((item) => item.id === stepRun.id);
         currentRun.value.step_runs = exists
-            ? currentRun.value.step_runs.map((item) => item.id === stepRun.id ? stepRun : item)
-            : [...currentRun.value.step_runs, stepRun];
+            ? currentRun.value.step_runs.map((item) => item.id === stepRun.id ? { ...item, ...stepRun } : item)
+            : [...currentRun.value.step_runs, stepRun as StepRun];
     };
 
     const updateRun = (run: RunPatch): void => {
@@ -46,7 +47,7 @@ export const useRunStore = defineStore('run', () => {
             ...run,
             status: run.status === ('complete' as RunStatus) ? RunStatus.COMPLETED : run.status ?? currentRun.value.status,
             workflow: run.workflow ?? currentRun.value.workflow,
-            step_runs: run.step_runs ?? currentRun.value.step_runs,
+            step_runs: run.step_runs !== undefined && run.step_runs.length > 0 ? run.step_runs : currentRun.value.step_runs,
         };
     };
 

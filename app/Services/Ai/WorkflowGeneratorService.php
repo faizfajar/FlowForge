@@ -108,19 +108,31 @@ PROMPT;
 
     private function callProvider(string $prompt): string
     {
-        $apiKey = env('OPENAI_API_KEY') ?: env('AI_API_KEY');
+        $apiKey = env('GEMINI_API_KEY') ?: env('AI_API_KEY');
         if (! is_string($apiKey) || $apiKey === '') {
             throw new AiUnavailableException('AI API key is not configured.');
         }
 
+        $model = $this->geminiModel();
         $response = Http::timeout(20)
-            ->withToken($apiKey)
-            ->post('https://api.openai.com/v1/chat/completions', [
-                'model' => env('AI_MODEL', 'GPT-5.4'),
-                'temperature' => 0.2,
-                'messages' => [
-                    ['role' => 'system', 'content' => self::SYSTEM_PROMPT],
-                    ['role' => 'user', 'content' => $prompt],
+            ->withHeaders([
+                'x-goog-api-key' => $apiKey,
+                'Content-Type' => 'application/json',
+            ])
+            ->post("https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent", [
+                'contents' => [
+                    [
+                        'role' => 'user',
+                        'parts' => [
+                            [
+                                'text' => self::SYSTEM_PROMPT."\n\nUser request:\n".$prompt,
+                            ],
+                        ],
+                    ],
+                ],
+                'generationConfig' => [
+                    'temperature' => 0.2,
+                    'responseMimeType' => 'application/json',
                 ],
             ]);
 
@@ -128,7 +140,17 @@ PROMPT;
             throw new AiUnavailableException('AI provider request failed.');
         }
 
-        return (string) data_get($response->json(), 'choices.0.message.content', '');
+        return (string) data_get($response->json(), 'candidates.0.content.parts.0.text', '');
+    }
+
+    private function geminiModel(): string
+    {
+        $model = env('GEMINI_MODEL') ?: env('AI_MODEL') ?: 'gemini-2.5-flash';
+        $model = trim((string) $model);
+
+        return str_starts_with($model, 'models/')
+            ? substr($model, 7)
+            : $model;
     }
 
     private function decodeDefinition(string $content): ?array

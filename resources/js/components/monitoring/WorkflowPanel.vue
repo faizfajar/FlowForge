@@ -34,6 +34,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
+    addWorkflow: [];
     selectWorkflow: [workflowId: string];
     selectRun: [runId: string];
     runTriggered: [workflowId: string, runId: string];
@@ -47,11 +48,13 @@ const triggeringWorkflowId = ref<string | null>(null);
 const activeChannel = ref<string | null>(null);
 let searchTimer = 0;
 
-const canTrigger = computed(() => {
+const canCreate = computed(() => {
     const role = String(auth.user?.role ?? '').toLowerCase();
 
     return role === UserRole.ADMIN.toLowerCase() || role === UserRole.EDITOR.toLowerCase();
 });
+
+const canTrigger = canCreate;
 
 const load = async (): Promise<void> => {
     await workflowStore.fetchWorkflows({ name: search.value || undefined });
@@ -149,7 +152,10 @@ onUnmounted(() => {
 <template>
     <aside class="workflow-panel">
         <header class="panel-header">
-            <h2>Workflows</h2>
+            <div class="header-row">
+                <h2>Workflows</h2>
+                <button v-if="canCreate" type="button" class="add-button" @click="emit('addWorkflow')">Add Workflow +</button>
+            </div>
             <input v-model="search" type="search" placeholder="Search workflows" />
         </header>
 
@@ -198,11 +204,14 @@ onUnmounted(() => {
 
 <style scoped>
 .workflow-panel {
+    flex: 0 0 280px;
     width: 280px;
-    height: 100vh;
+    height: 100dvh;
     overflow-y: auto;
     border-right: 1px solid #dbe3ef;
     background: #f7fafc;
+    scroll-snap-align: start;
+    scrollbar-gutter: stable;
 }
 
 .panel-header {
@@ -219,6 +228,26 @@ onUnmounted(() => {
 h2 {
     margin: 0;
     font-size: 15px;
+}
+
+.header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+.add-button {
+    border: 1px solid #0f766e;
+    border-radius: 6px;
+    background: #0f766e;
+    padding: 6px 8px;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
 }
 
 input {
@@ -317,5 +346,39 @@ time {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
+}
+
+@media (max-width: 1180px) {
+    .workflow-panel {
+        flex-basis: 300px;
+        width: 300px;
+    }
+
+    .workflow-item {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .item-meta {
+        grid-template-columns: auto auto;
+        align-items: center;
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 720px) {
+    .workflow-panel {
+        flex-basis: min(86vw, 340px);
+        width: min(86vw, 340px);
+    }
+
+    .header-row {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .add-button {
+        width: 100%;
+        min-height: 34px;
+    }
 }
 </style>

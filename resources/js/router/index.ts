@@ -21,8 +21,8 @@ const routes: RouteRecordRaw[] = [
             { path: 'workflows', component: WorkflowListPage, meta: { requiresAuth: true } },
             {
                 path: 'workflows/create',
-                component: WorkflowEditorPage,
-                meta: { requiresAuth: true, roles: [UserRole.ADMIN, UserRole.EDITOR] },
+                redirect: '/workflows',
+                meta: { requiresAuth: true },
             },
             { path: 'workflows/:id', component: WorkflowDetailPage, meta: { requiresAuth: true } },
             {

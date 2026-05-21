@@ -44,8 +44,12 @@ class WorkflowStepFailed implements ShouldBroadcast
             'step_run' => $this->stepRun === null ? null : [
                 'id' => $this->stepRun->id,
                 'step_id' => $this->stepRun->step_id,
+                'step_type' => $this->stepRun->step_type?->value,
                 'status' => $this->stepRun->status?->value,
+                'input' => $this->stepRun->input,
+                'output' => $this->stepRun->output,
                 'error' => $this->stepRun->error,
+                'started_at' => $this->stepRun->started_at?->timezone(config('app.timezone'))->toIso8601String(),
                 'completed_at' => $this->stepRun->completed_at?->timezone(config('app.timezone'))->toIso8601String(),
             ],
         ];

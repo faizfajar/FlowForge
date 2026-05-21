@@ -31,7 +31,7 @@ const runStore = useRunStore();
 const reverb = useReverb();
 const logs = ref<TraceExecutionLog[]>([]);
 const confirmCancel = ref(false);
-const pollTimer = ref<number | null>(null);
+const activeRunChannel = ref<string | null>(null);
 
 const currentRun = computed(() => runStore.currentRun);
 
@@ -80,14 +80,8 @@ const loadRun = async (): Promise<void> => {
     await loadLogs();
 };
 
-const updateStep = async (stepRun: StepRun): Promise<void> => {
+const updateStep = (stepRun: StepRun): void => {
     runStore.updateStepRun(stepRun);
-    await loadLogs();
-};
-
-const refreshStepPayload = async (stepRun: StepRun): Promise<void> => {
-    runStore.updateStepRun(stepRun);
-    await loadRun();
 };
 
 const logsForStep = (step: StepRun): TraceExecutionLog[] => logs.value.filter((log) => {
@@ -113,59 +107,41 @@ const subscribe = (): void => {
         return;
     }
 
+    const channelName = `tenant.${tenantId}.workflow.${workflowId}`;
+    if (activeRunChannel.value !== null && activeRunChannel.value !== channelName && window.Echo !== undefined) {
+        window.Echo.leave(activeRunChannel.value);
+    }
+
+    activeRunChannel.value = channelName;
     reverb.subscribeToRun(props.runId, tenantId, workflowId, {
         onRunStarted: (run) => {
             runStore.updateRun(run);
-            void loadRun();
         },
         onStepStarted: (stepRun) => {
-            void updateStep(stepRun);
+            updateStep(stepRun);
         },
         onStepCompleted: (stepRun) => {
-            void refreshStepPayload(stepRun);
+            updateStep(stepRun);
         },
         onStepFailed: (stepRun) => {
-            void refreshStepPayload(stepRun);
+            updateStep(stepRun);
         },
         onRunCompleted: (run) => {
             runStore.updateRun(run);
-            void loadLogs();
-            window.setTimeout(() => void loadRun(), 250);
         },
     });
 };
 
-const clearPolling = (): void => {
-    if (pollTimer.value !== null) {
-        window.clearInterval(pollTimer.value);
-        pollTimer.value = null;
-    }
-};
-
-const ensurePolling = (): void => {
-    const status = currentRun.value?.status;
-    const shouldPoll = status === RunStatus.PENDING || status === RunStatus.RUNNING;
-
-    if (!shouldPoll) {
-        clearPolling();
-        return;
-    }
-
-    if (pollTimer.value === null) {
-        pollTimer.value = window.setInterval(() => void loadRun(), 2000);
-    }
-};
-
 watch(() => props.runId, async () => {
-    clearPolling();
     await loadRun();
     subscribe();
-    ensurePolling();
 }, { immediate: true });
 
-watch(() => currentRun.value?.status, ensurePolling);
-
-onUnmounted(clearPolling);
+onUnmounted(() => {
+    if (activeRunChannel.value !== null && window.Echo !== undefined) {
+        window.Echo.leave(activeRunChannel.value);
+    }
+});
 
 </script>
 
@@ -209,10 +185,13 @@ onUnmounted(clearPolling);
 
 <style scoped>
 .trace-panel {
+    flex: 1 0 min(680px, 100vw);
     min-width: 0;
-    height: 100vh;
+    height: 100dvh;
     overflow-y: auto;
     background: #f7fafc;
+    scroll-snap-align: start;
+    scrollbar-gutter: stable;
 }
 
 .trace-header {
@@ -274,5 +253,22 @@ h2 {
 .steps {
     display: grid;
     gap: 8px;
+}
+
+@media (max-width: 1180px) {
+    .trace-panel {
+        flex-basis: 620px;
+    }
+}
+
+@media (max-width: 720px) {
+    .trace-panel {
+        flex-basis: 96vw;
+    }
+
+    .trace-header {
+        grid-template-columns: minmax(0, 1fr);
+        align-items: stretch;
+    }
 }
 </style>

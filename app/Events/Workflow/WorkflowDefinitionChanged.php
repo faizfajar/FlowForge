@@ -20,8 +20,7 @@ class WorkflowDefinitionChanged implements ShouldBroadcast
         public readonly string $action,
         public readonly string $workflowId,
         public readonly ?WorkflowDefinition $workflow = null,
-    ) {
-    }
+    ) {}
 
     public function broadcastOn(): PrivateChannel
     {

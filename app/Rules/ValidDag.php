@@ -11,9 +11,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 
 class ValidDag implements ValidationRule
 {
-    public function __construct(private readonly DagParser $dagParser)
-    {
-    }
+    public function __construct(private readonly DagParser $dagParser) {}
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {

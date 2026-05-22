@@ -19,8 +19,7 @@ class ExecutorFactory
         private readonly ConditionExecutor $conditionExecutor,
         private readonly DelayExecutor $delayExecutor,
         private readonly ScriptExecutor $scriptExecutor,
-    ) {
-    }
+    ) {}
 
     public function make(StepType $type): StepExecutorInterface
     {

@@ -15,9 +15,7 @@ use Spatie\Permission\Models\Role;
 
 class AuthService
 {
-    public function __construct(private readonly JwtService $jwtService)
-    {
-    }
+    public function __construct(private readonly JwtService $jwtService) {}
 
     /**
      * @param  array{name: string, email: string, password: string, tenant_name: string}  $data

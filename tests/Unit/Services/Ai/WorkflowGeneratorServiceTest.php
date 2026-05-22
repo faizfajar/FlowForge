@@ -6,7 +6,6 @@ namespace Tests\Unit\Services\Ai;
 
 use App\Exceptions\AiGenerationException;
 use App\Services\Ai\WorkflowGeneratorService;
-use App\Services\Workflow\DagParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;

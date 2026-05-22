@@ -16,9 +16,7 @@ class WorkflowRunCompleted implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public readonly WorkflowRun $run, public readonly ?StepRun $stepRun = null)
-    {
-    }
+    public function __construct(public readonly WorkflowRun $run, public readonly ?StepRun $stepRun = null) {}
 
     /**
      * @return array<int, PrivateChannel>
@@ -57,17 +55,17 @@ class WorkflowRunCompleted implements ShouldBroadcast
     private function runPayload(): array
     {
         return [
-                'id' => $this->run->id,
-                'workflow' => [
-                    'id' => $this->run->workflow_definition_id,
-                    'name' => $this->run->definition?->name ?? 'Workflow',
-                ],
-                'workflow_definition_id' => $this->run->workflow_definition_id,
-                'status' => $this->run->status?->value,
-                'trigger_type' => $this->run->trigger_type?->value,
-                'started_at' => $this->run->started_at?->timezone(config('app.timezone'))->toIso8601String(),
-                'completed_at' => $this->run->completed_at?->timezone(config('app.timezone'))->toIso8601String(),
-                'step_runs' => [],
+            'id' => $this->run->id,
+            'workflow' => [
+                'id' => $this->run->workflow_definition_id,
+                'name' => $this->run->definition?->name ?? 'Workflow',
+            ],
+            'workflow_definition_id' => $this->run->workflow_definition_id,
+            'status' => $this->run->status?->value,
+            'trigger_type' => $this->run->trigger_type?->value,
+            'started_at' => $this->run->started_at?->timezone(config('app.timezone'))->toIso8601String(),
+            'completed_at' => $this->run->completed_at?->timezone(config('app.timezone'))->toIso8601String(),
+            'step_runs' => [],
         ];
     }
 }

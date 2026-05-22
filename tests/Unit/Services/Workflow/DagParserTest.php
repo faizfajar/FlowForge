@@ -13,18 +13,18 @@ class DagParserTest extends TestCase
 {
     public function test_valid_linear_dag_returns_topological_order(): void
     {
-        $parsed = (new DagParser())->parse($this->dag([
+        $parsed = (new DagParser)->parse($this->dag([
             ['id' => 'A', 'dependencies' => []],
             ['id' => 'B', 'dependencies' => ['A']],
             ['id' => 'C', 'dependencies' => ['B']],
         ]));
 
-        $this->assertSame(['A', 'B', 'C'], (new DagParser())->topologicalSort($parsed->adjacencyList));
+        $this->assertSame(['A', 'B', 'C'], (new DagParser)->topologicalSort($parsed->adjacencyList));
     }
 
     public function test_valid_parallel_dag_returns_parallel_groups(): void
     {
-        $parsed = (new DagParser())->parse($this->dag([
+        $parsed = (new DagParser)->parse($this->dag([
             ['id' => 'A', 'dependencies' => []],
             ['id' => 'B', 'dependencies' => ['A']],
             ['id' => 'C', 'dependencies' => ['A']],
@@ -38,7 +38,7 @@ class DagParserTest extends TestCase
     {
         $this->expectException(DagCycleException::class);
 
-        (new DagParser())->parse($this->dag([
+        (new DagParser)->parse($this->dag([
             ['id' => 'A', 'dependencies' => ['C']],
             ['id' => 'B', 'dependencies' => ['A']],
             ['id' => 'C', 'dependencies' => ['B']],
@@ -49,7 +49,7 @@ class DagParserTest extends TestCase
     {
         $this->expectException(DagValidationException::class);
 
-        (new DagParser())->parse($this->dag([
+        (new DagParser)->parse($this->dag([
             ['id' => 'A', 'dependencies' => ['B']],
         ]));
     }
@@ -58,7 +58,7 @@ class DagParserTest extends TestCase
     {
         $this->expectException(DagValidationException::class);
 
-        (new DagParser())->parse($this->dag([
+        (new DagParser)->parse($this->dag([
             ['id' => 'A', 'dependencies' => []],
             ['id' => 'A', 'dependencies' => []],
         ]));
@@ -66,7 +66,7 @@ class DagParserTest extends TestCase
 
     public function test_single_isolated_step(): void
     {
-        $parsed = (new DagParser())->parse($this->dag([
+        $parsed = (new DagParser)->parse($this->dag([
             ['id' => 'A', 'dependencies' => []],
         ]));
 
@@ -75,7 +75,7 @@ class DagParserTest extends TestCase
 
     public function test_complex_dag_has_three_waves(): void
     {
-        $parsed = (new DagParser())->parse($this->dag([
+        $parsed = (new DagParser)->parse($this->dag([
             ['id' => 'A', 'dependencies' => []],
             ['id' => 'B', 'dependencies' => []],
             ['id' => 'C', 'dependencies' => ['A']],
@@ -92,21 +92,21 @@ class DagParserTest extends TestCase
     {
         $this->expectException(DagValidationException::class);
 
-        (new DagParser())->parse(['steps' => []]);
+        (new DagParser)->parse(['steps' => []]);
     }
 
     public function test_step_depending_on_itself_throws_cycle_exception(): void
     {
         $this->expectException(DagCycleException::class);
 
-        (new DagParser())->parse($this->dag([
+        (new DagParser)->parse($this->dag([
             ['id' => 'A', 'dependencies' => ['A']],
         ]));
     }
 
     public function test_all_steps_in_parallel(): void
     {
-        $parsed = (new DagParser())->parse($this->dag([
+        $parsed = (new DagParser)->parse($this->dag([
             ['id' => 'A', 'dependencies' => []],
             ['id' => 'B', 'dependencies' => []],
             ['id' => 'C', 'dependencies' => []],

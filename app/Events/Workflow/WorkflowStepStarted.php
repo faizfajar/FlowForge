@@ -16,9 +16,7 @@ class WorkflowStepStarted implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public readonly WorkflowRun $run, public readonly ?StepRun $stepRun = null)
-    {
-    }
+    public function __construct(public readonly WorkflowRun $run, public readonly ?StepRun $stepRun = null) {}
 
     public function broadcastOn(): PrivateChannel
     {

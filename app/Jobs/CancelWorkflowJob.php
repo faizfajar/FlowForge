@@ -18,9 +18,7 @@ class CancelWorkflowJob implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(private readonly string $workflowRunId)
-    {
-    }
+    public function __construct(private readonly string $workflowRunId) {}
 
     public function handle(): void
     {

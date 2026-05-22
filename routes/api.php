@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\AiController;
+use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\RunController;
 use App\Http\Controllers\Api\V1\TriggerController;

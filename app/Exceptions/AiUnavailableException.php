@@ -6,6 +6,4 @@ namespace App\Exceptions;
 
 use RuntimeException;
 
-class AiUnavailableException extends RuntimeException
-{
-}
+class AiUnavailableException extends RuntimeException {}

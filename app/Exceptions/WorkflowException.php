@@ -6,6 +6,4 @@ namespace App\Exceptions;
 
 use RuntimeException;
 
-class WorkflowException extends RuntimeException
-{
-}
+class WorkflowException extends RuntimeException {}

@@ -17,8 +17,7 @@ class TriggerController extends Controller
     public function __construct(
         private readonly TriggerService $triggerService,
         private readonly WorkflowService $workflowService,
-    ) {
-    }
+    ) {}
 
     public function triggerWorkflow(string $id): JsonResponse
     {

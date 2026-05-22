@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureTenantAccess;
+use App\Http\Middleware\ThrottleAiRequests;
+use App\Http\Middleware\ThrottleByTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -17,9 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'ai.rate' => App\Http\Middleware\ThrottleAiRequests::class,
-            'tenant' => App\Http\Middleware\EnsureTenantAccess::class,
-            'tenant.throttle' => App\Http\Middleware\ThrottleByTenant::class,
+            'ai.rate' => ThrottleAiRequests::class,
+            'tenant' => EnsureTenantAccess::class,
+            'tenant.throttle' => ThrottleByTenant::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

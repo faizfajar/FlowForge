@@ -14,9 +14,7 @@ use Illuminate\Http\JsonResponse;
 
 class AiController extends Controller
 {
-    public function __construct(private readonly WorkflowGeneratorService $workflowGeneratorService)
-    {
-    }
+    public function __construct(private readonly WorkflowGeneratorService $workflowGeneratorService) {}
 
     public function generateWorkflow(GenerateWorkflowRequest $request): JsonResponse
     {

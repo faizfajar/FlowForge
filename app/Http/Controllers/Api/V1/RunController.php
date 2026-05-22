@@ -16,9 +16,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class RunController extends Controller
 {
-    public function __construct(private readonly RunService $runService)
-    {
-    }
+    public function __construct(private readonly RunService $runService) {}
 
     public function index(Request $request): RunCollection
     {

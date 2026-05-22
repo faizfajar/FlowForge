@@ -7,7 +7,6 @@ namespace Tests\Feature\Api\V1;
 use App\Enums\UserRole;
 use App\Models\Tenant;
 use App\Models\User;
-use App\Models\WorkflowDefinition;
 use App\Models\WorkflowVersion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;

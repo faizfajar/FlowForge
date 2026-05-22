@@ -17,6 +17,5 @@ readonly class ParsedDag
         public array $adjacencyList,
         public array $reverseAdjacency,
         public array $parallelGroups,
-    ) {
-    }
+    ) {}
 }

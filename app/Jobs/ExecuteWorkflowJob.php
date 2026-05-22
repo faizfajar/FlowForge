@@ -4,39 +4,40 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Enums\StepRunStatus;
 use App\Enums\WorkflowRunStatus;
 use App\Events\Workflow\WorkflowRunCompleted;
 use App\Events\Workflow\WorkflowRunStarted;
 use App\Models\ExecutionLog;
-use App\Models\StepRun;
 use App\Models\WorkflowRun;
 use App\Services\Workflow\DagParser;
+use App\Services\Workflow\DTOs\ParsedDag;
+use Illuminate\Bus\Batch;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Bus;
 use Throwable;
 
 class ExecuteWorkflowJob implements ShouldQueue
 {
     use Queueable;
 
-    private const WAVE_POLL_MICROSECONDS = 200_000;
+    public int $timeout = 300;
 
-    public int $tries = 1;
-
-    public int $timeout = 3600;
-
-    public function __construct(private readonly string $workflowRunId)
-    {
+    public function __construct(
+        private readonly string $workflowRunId,
+        private readonly int $waveIndex = 0,
+    ) {
         $this->onQueue('high');
     }
 
     public function handle(DagParser $dagParser): void
     {
-        $run = WorkflowRun::query()->with('version')->findOrFail($this->workflowRunId);
+        $run = WorkflowRun::query()
+            ->with(['definition', 'version'])
+            ->findOrFail($this->workflowRunId);
 
-        if ($this->isCancelled($run)) {
+        if ($this->isTerminal($run)) {
             return;
         }
 
@@ -46,132 +47,144 @@ class ExecuteWorkflowJob implements ShouldQueue
             return;
         }
 
-        $dag = is_array($run->version?->dag) ? $run->version->dag : [];
-        $parsedDag = $dagParser->parse($dag);
+        if ($run->status === WorkflowRunStatus::PENDING) {
+            $run->forceFill([
+                'status' => WorkflowRunStatus::RUNNING,
+                'started_at' => $run->started_at ?? Carbon::now(),
+            ])->save();
+
+            $this->log($run, 'info', 'Workflow started.');
+            event(new WorkflowRunStarted($run->refresh()->loadMissing('definition')));
+        }
+
+        $parsedDag = $this->parseDag($dagParser, $run);
+        $wave = $parsedDag->parallelGroups[$this->waveIndex] ?? null;
+
+        if ($wave === null) {
+            $this->completeRun($run);
+
+            return;
+        }
+
+        $jobs = array_map(
+            fn (string $stepId): ExecuteStepJob => new ExecuteStepJob($run->id, $parsedDag->steps[$stepId]),
+            $wave
+        );
+
+        $nextWaveIndex = $this->waveIndex + 1;
+
+        Bus::batch($jobs)
+            ->name("workflow-run:{$run->id}:wave:{$this->waveIndex}")
+            ->onQueue('high')
+            ->then(static function (Batch $batch) use ($run, $nextWaveIndex): void {
+                self::dispatchNextWave($run->id, $nextWaveIndex);
+            })
+            ->catch(static function (Batch $batch, Throwable $exception) use ($run): void {
+                self::failRunFromBatch($run->id, $exception->getMessage());
+            })
+            ->dispatch();
+    }
+
+    public static function dispatchNextWave(string $workflowRunId, int $waveIndex): void
+    {
+        $run = WorkflowRun::query()->find($workflowRunId);
+
+        if (! $run instanceof WorkflowRun) {
+            return;
+        }
+
+        if (in_array($run->status, [WorkflowRunStatus::FAILED, WorkflowRunStatus::COMPLETED, WorkflowRunStatus::CANCELLED], true)) {
+            return;
+        }
+
+        if ($run->timeout_at !== null && $run->timeout_at->isPast() && $run->status !== WorkflowRunStatus::CANCELLED) {
+            self::markTimedOutStatic($run);
+
+            return;
+        }
+
+        self::dispatch($workflowRunId, $waveIndex)->onQueue('high');
+    }
+
+    public static function failRunFromBatch(string $workflowRunId, string $error): void
+    {
+        $run = WorkflowRun::query()
+            ->with('definition')
+            ->find($workflowRunId);
+
+        if (! $run instanceof WorkflowRun || in_array($run->status, [WorkflowRunStatus::FAILED, WorkflowRunStatus::COMPLETED, WorkflowRunStatus::CANCELLED], true)) {
+            return;
+        }
 
         $run->forceFill([
-            'status' => WorkflowRunStatus::RUNNING,
-            'started_at' => Carbon::now(),
+            'status' => WorkflowRunStatus::FAILED,
+            'completed_at' => Carbon::now(),
         ])->save();
 
-        event(new WorkflowRunStarted($run->refresh()));
-        $this->log($run, 'info', 'Workflow run started.');
+        ExecutionLog::query()->create([
+            'workflow_run_id' => $run->id,
+            'step_run_id' => null,
+            'level' => 'error',
+            'message' => 'Workflow failed.',
+            'context' => ['error' => $error],
+            'logged_at' => Carbon::now(),
+        ]);
 
-        try {
-            foreach ($parsedDag->parallelGroups as $group) {
-                if ($this->isCancelled($run)) {
-                    return;
-                }
-
-                if ($this->isTimedOut($run)) {
-                    $this->markTimedOut($run);
-
-                    return;
-                }
-
-                foreach ($group as $stepId) {
-                    ExecuteStepJob::dispatch($run->id, $parsedDag->steps[$stepId])->onQueue('high');
-                }
-
-                if (! $this->waitForWave($run, $group)) {
-                    return;
-                }
-
-                $failedStep = $this->failedStepInWave($run, $group);
-
-                if ($failedStep instanceof StepRun && ! (bool) ($parsedDag->steps[$failedStep->step_id]['optional'] ?? false)) {
-                    $run->forceFill([
-                        'status' => WorkflowRunStatus::FAILED,
-                        'completed_at' => Carbon::now(),
-                    ])->save();
-
-                    $this->log($run, 'error', 'Workflow run failed.', ['step_id' => $failedStep->step_id]);
-                    event(new WorkflowRunCompleted($run->refresh()));
-
-                    return;
-                }
-            }
-
-            $run->forceFill([
-                'status' => WorkflowRunStatus::COMPLETED,
-                'completed_at' => Carbon::now(),
-            ])->save();
-
-            $this->log($run, 'info', 'Workflow run completed.');
-            event(new WorkflowRunCompleted($run->refresh()));
-        } catch (Throwable $exception) {
-            if ($this->isCancelled($run)) {
-                return;
-            }
-
-            if ($this->isTimedOut($run)) {
-                $this->markTimedOut($run);
-
-                return;
-            }
-
-            $run->forceFill([
-                'status' => WorkflowRunStatus::FAILED,
-                'completed_at' => Carbon::now(),
-            ])->save();
-
-            $this->log($run, 'error', 'Workflow run failed.', ['error' => $exception->getMessage()]);
-            event(new WorkflowRunCompleted($run->refresh()));
-
-            throw $exception;
-        }
+        event(new WorkflowRunCompleted($run->refresh()->loadMissing('definition')));
     }
 
-    /**
-     * @param  array<int, string>  $stepIds
-     */
-    private function waitForWave(WorkflowRun $run, array $stepIds): bool
+    private static function markTimedOutStatic(WorkflowRun $run): void
     {
-        while (true) {
-            if ($this->isCancelled($run)) {
-                return false;
-            }
-
-            if ($this->isTimedOut($run)) {
-                $this->markTimedOut($run);
-
-                return false;
-            }
-
-            $completed = StepRun::query()
-                ->where('workflow_run_id', $run->id)
-                ->whereIn('step_id', $stepIds)
-                ->whereIn('status', [
-                    StepRunStatus::SUCCESS,
-                    StepRunStatus::FAILED,
-                    StepRunStatus::SKIPPED,
-                    StepRunStatus::CANCELLED,
-                ])
-                ->count();
-
-            if ($completed >= count($stepIds)) {
-                return true;
-            }
-
-            usleep(self::WAVE_POLL_MICROSECONDS);
+        if (in_array($run->status, [WorkflowRunStatus::FAILED, WorkflowRunStatus::COMPLETED, WorkflowRunStatus::CANCELLED], true)) {
+            return;
         }
+
+        $run->forceFill([
+            'status' => WorkflowRunStatus::FAILED,
+            'completed_at' => Carbon::now(),
+        ])->save();
+
+        ExecutionLog::query()->create([
+            'workflow_run_id' => $run->id,
+            'step_run_id' => null,
+            'level' => 'error',
+            'message' => 'Workflow run exceeded the global timeout.',
+            'context' => [],
+            'logged_at' => Carbon::now(),
+        ]);
+
+        event(new WorkflowRunCompleted($run->refresh()->loadMissing('definition')));
     }
 
-    /**
-     * @param  array<int, string>  $stepIds
-     */
-    private function failedStepInWave(WorkflowRun $run, array $stepIds): ?StepRun
+    private function parseDag(DagParser $dagParser, WorkflowRun $run): ParsedDag
     {
-        return StepRun::query()
-            ->where('workflow_run_id', $run->id)
-            ->whereIn('step_id', $stepIds)
-            ->where('status', StepRunStatus::FAILED)
-            ->first();
+        $dag = $run->version?->dag;
+
+        return $dagParser->parse(is_array($dag) ? $dag : []);
     }
 
-    /**
-     * @param  array<string, mixed>  $context
-     */
+    private function completeRun(WorkflowRun $run): void
+    {
+        $fresh = $run->fresh(['definition']);
+
+        if (! $fresh instanceof WorkflowRun || $this->isTerminal($fresh)) {
+            return;
+        }
+
+        $fresh->forceFill([
+            'status' => WorkflowRunStatus::COMPLETED,
+            'completed_at' => Carbon::now(),
+        ])->save();
+
+        $this->log($fresh, 'info', 'Workflow completed.');
+        event(new WorkflowRunCompleted($fresh->refresh()->loadMissing('definition')));
+    }
+
+    private function markTimedOut(WorkflowRun $run): void
+    {
+        self::markTimedOutStatic($run->fresh(['definition']) ?? $run);
+    }
+
     private function log(WorkflowRun $run, string $level, string $message, array $context = []): void
     {
         ExecutionLog::query()->create([
@@ -184,41 +197,15 @@ class ExecuteWorkflowJob implements ShouldQueue
         ]);
     }
 
-    private function isCancelled(WorkflowRun $run): bool
+    private function isTerminal(WorkflowRun $run): bool
     {
-        return $run->fresh()?->status === WorkflowRunStatus::CANCELLED;
+        return in_array($run->status, [WorkflowRunStatus::FAILED, WorkflowRunStatus::COMPLETED, WorkflowRunStatus::CANCELLED], true);
     }
 
     private function isTimedOut(WorkflowRun $run): bool
     {
-        $fresh = $run->fresh();
-
-        return $fresh?->timeout_at !== null
-            && $fresh->timeout_at->isPast()
-            && ! in_array($fresh->status, [WorkflowRunStatus::COMPLETED, WorkflowRunStatus::FAILED, WorkflowRunStatus::CANCELLED], true);
-    }
-
-    private function markTimedOut(WorkflowRun $run): void
-    {
-        $completedAt = Carbon::now();
-
-        StepRun::query()
-            ->where('workflow_run_id', $run->id)
-            ->whereIn('status', [StepRunStatus::PENDING, StepRunStatus::RUNNING])
-            ->update([
-                'status' => StepRunStatus::FAILED,
-                'error' => 'Workflow run exceeded the global timeout.',
-                'completed_at' => $completedAt,
-            ]);
-
-        $run->forceFill([
-            'status' => WorkflowRunStatus::FAILED,
-            'completed_at' => $completedAt,
-        ])->save();
-
-        $this->log($run, 'error', 'Workflow run timed out.', [
-            'timeout_at' => $run->timeout_at?->timezone(config('app.timezone'))->toIso8601String(),
-        ]);
-        event(new WorkflowRunCompleted($run->refresh()));
+        return $run->timeout_at !== null
+            && $run->timeout_at->isPast()
+            && $run->status !== WorkflowRunStatus::CANCELLED;
     }
 }

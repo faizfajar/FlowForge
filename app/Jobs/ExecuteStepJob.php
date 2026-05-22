@@ -7,6 +7,7 @@ namespace App\Jobs;
 use App\Enums\StepRunStatus;
 use App\Enums\StepType;
 use App\Enums\WorkflowRunStatus;
+use App\Events\Workflow\WorkflowRunCompleted;
 use App\Events\Workflow\WorkflowStepCompleted;
 use App\Events\Workflow\WorkflowStepFailed;
 use App\Events\Workflow\WorkflowStepStarted;
@@ -14,6 +15,7 @@ use App\Models\ExecutionLog;
 use App\Models\StepRun;
 use App\Models\WorkflowRun;
 use App\Services\Workflow\ExecutorFactory;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -21,7 +23,7 @@ use Throwable;
 
 class ExecuteStepJob implements ShouldQueue
 {
-    use Queueable;
+    use Batchable, Queueable;
 
     public int $tries = 3;
 
@@ -49,39 +51,61 @@ class ExecuteStepJob implements ShouldQueue
         $stepId = (string) $this->step['id'];
         $stepType = StepType::from((string) $this->step['type']);
         $config = is_array($this->step['config'] ?? null) ? $this->step['config'] : [];
+        $stepRun = StepRun::query()->firstOrNew([
+            'workflow_run_id' => $run->id,
+            'step_id' => $stepId,
+        ]);
 
         if ($this->isCancelled($run)) {
             return;
         }
 
         if ($this->isTimedOut($run)) {
+            $this->markWorkflowTimedOut($run, $stepRun->exists ? $stepRun : null);
+
             return;
         }
-
-        $stepRun = StepRun::query()->firstOrNew([
-            'workflow_run_id' => $run->id,
-            'step_id' => $stepId,
-        ]);
 
         if ($stepRun->exists && $stepRun->status === StepRunStatus::CANCELLED) {
             return;
         }
 
-        $stepRun->fill([
-            'step_type' => $stepType,
-            'status' => StepRunStatus::RUNNING,
-            'input' => $config,
-            'attempt' => max(1, (int) $stepRun->attempt + ($stepRun->exists ? 1 : 0)),
-            'started_at' => Carbon::now(),
-            'completed_at' => null,
-            'error' => null,
-        ])->save();
+        $isDelayResume = $this->isDelayResume($stepType, $stepRun);
 
-        event(new WorkflowStepStarted($run, $stepRun));
-        $this->log($run, $stepRun, 'info', 'Step started.');
+        if (! $isDelayResume) {
+            $stepRun->fill([
+                'step_type' => $stepType,
+                'status' => StepRunStatus::RUNNING,
+                'input' => $config,
+                'attempt' => max($this->attempts(), max(1, (int) $stepRun->attempt + ($stepRun->exists ? 1 : 0))),
+                'started_at' => Carbon::now(),
+                'completed_at' => null,
+                'error' => null,
+            ])->save();
+
+            event(new WorkflowStepStarted($run, $stepRun));
+            $this->log($run, $stepRun, 'info', 'Step started.');
+        }
 
         try {
             $output = $executorFactory->make($stepType)->execute($stepRun, $this->previousOutputs($run));
+
+            if ($this->shouldReleaseForDelay($output)) {
+                $releaseAfter = max(1, (int) $output['__release_after']);
+                $persistedOutput = $output;
+                unset($persistedOutput['__release_after']);
+
+                $stepRun->forceFill([
+                    'status' => StepRunStatus::RUNNING,
+                    'output' => $persistedOutput,
+                    'completed_at' => null,
+                ])->save();
+
+                $this->log($run, $stepRun, 'info', 'Step waiting on delay release.', ['seconds' => $releaseAfter]);
+                $this->release($releaseAfter);
+
+                return;
+            }
 
             if ($this->isCancelled($run)) {
                 $this->markCancelled($stepRun);
@@ -91,7 +115,7 @@ class ExecuteStepJob implements ShouldQueue
             }
 
             if ($this->isTimedOut($run)) {
-                $this->markTimedOut($run, $stepRun);
+                $this->markWorkflowTimedOut($run, $stepRun);
 
                 return;
             }
@@ -113,7 +137,7 @@ class ExecuteStepJob implements ShouldQueue
             }
 
             if ($this->isTimedOut($run)) {
-                $this->markTimedOut($run, $stepRun);
+                $this->markWorkflowTimedOut($run, $stepRun);
 
                 return;
             }
@@ -212,5 +236,53 @@ class ExecuteStepJob implements ShouldQueue
 
         $this->log($run, $stepRun, 'error', 'Step failed because the workflow run timed out.');
         event(new WorkflowStepFailed($run->refresh(), $stepRun->refresh()));
+    }
+
+    private function markWorkflowTimedOut(WorkflowRun $run, ?StepRun $stepRun = null): void
+    {
+        if ($stepRun instanceof StepRun) {
+            $this->markTimedOut($run, $stepRun);
+        }
+
+        $freshRun = $run->fresh(['definition']) ?? $run;
+
+        if ($freshRun->status === WorkflowRunStatus::FAILED || $freshRun->status === WorkflowRunStatus::COMPLETED || $freshRun->status === WorkflowRunStatus::CANCELLED) {
+            return;
+        }
+
+        $freshRun->forceFill([
+            'status' => WorkflowRunStatus::FAILED,
+            'completed_at' => Carbon::now(),
+        ])->save();
+
+        ExecutionLog::query()->create([
+            'workflow_run_id' => $freshRun->id,
+            'step_run_id' => null,
+            'level' => 'error',
+            'message' => 'Workflow run exceeded the global timeout.',
+            'context' => [],
+            'logged_at' => Carbon::now(),
+        ]);
+
+        event(new WorkflowRunCompleted($freshRun->refresh()->loadMissing('definition')));
+    }
+
+    private function isDelayResume(StepType $stepType, StepRun $stepRun): bool
+    {
+        if ($stepType !== StepType::DELAY || ! $stepRun->exists || $stepRun->status !== StepRunStatus::RUNNING) {
+            return false;
+        }
+
+        $output = is_array($stepRun->output) ? $stepRun->output : [];
+
+        return ($output['delay_released_once'] ?? false) === true;
+    }
+
+    /**
+     * @param  array<string, mixed>  $output
+     */
+    private function shouldReleaseForDelay(array $output): bool
+    {
+        return isset($output['__release_after']) && is_numeric($output['__release_after']);
     }
 }

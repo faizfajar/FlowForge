@@ -11,9 +11,7 @@ use Throwable;
 
 class ConditionExecutor implements StepExecutorInterface
 {
-    public function __construct(private readonly ExpressionLanguage $expressionLanguage)
-    {
-    }
+    public function __construct(private readonly ExpressionLanguage $expressionLanguage) {}
 
     public function execute(StepRun $stepRun, array $previousOutputs): array
     {

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Workflow;
 
+use App\Enums\StepType;
 use App\Exceptions\DagCycleException;
 use App\Exceptions\DagValidationException;
-use App\Enums\StepType;
 use App\Services\Workflow\DTOs\ParsedDag;
 
 class DagParser

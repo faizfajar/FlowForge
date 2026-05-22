@@ -18,9 +18,7 @@ use Illuminate\Http\Response;
 
 class WorkflowController extends Controller
 {
-    public function __construct(private readonly WorkflowService $workflowService)
-    {
-    }
+    public function __construct(private readonly WorkflowService $workflowService) {}
 
     public function index(Request $request): JsonResponse
     {

@@ -16,9 +16,7 @@ class WorkflowRunStarted implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public readonly WorkflowRun $run, public readonly ?StepRun $stepRun = null)
-    {
-    }
+    public function __construct(public readonly WorkflowRun $run, public readonly ?StepRun $stepRun = null) {}
 
     /**
      * @return array<int, PrivateChannel>
@@ -57,19 +55,19 @@ class WorkflowRunStarted implements ShouldBroadcast
     private function runPayload(): array
     {
         return [
-                'id' => $this->run->id,
-                'workflow' => [
-                    'id' => $this->run->workflow_definition_id,
-                    'name' => $this->run->definition?->name ?? 'Workflow',
-                ],
-                'tenant_id' => $this->run->tenant_id,
-                'workflow_definition_id' => $this->run->workflow_definition_id,
-                'workflow_version_id' => $this->run->workflow_version_id,
-                'status' => $this->run->status?->value,
-                'trigger_type' => $this->run->trigger_type?->value,
-                'started_at' => $this->run->started_at?->timezone(config('app.timezone'))->toIso8601String(),
-                'completed_at' => $this->run->completed_at?->timezone(config('app.timezone'))->toIso8601String(),
-                'step_runs' => [],
+            'id' => $this->run->id,
+            'workflow' => [
+                'id' => $this->run->workflow_definition_id,
+                'name' => $this->run->definition?->name ?? 'Workflow',
+            ],
+            'tenant_id' => $this->run->tenant_id,
+            'workflow_definition_id' => $this->run->workflow_definition_id,
+            'workflow_version_id' => $this->run->workflow_version_id,
+            'status' => $this->run->status?->value,
+            'trigger_type' => $this->run->trigger_type?->value,
+            'started_at' => $this->run->started_at?->timezone(config('app.timezone'))->toIso8601String(),
+            'completed_at' => $this->run->completed_at?->timezone(config('app.timezone'))->toIso8601String(),
+            'step_runs' => [],
         ];
     }
 }

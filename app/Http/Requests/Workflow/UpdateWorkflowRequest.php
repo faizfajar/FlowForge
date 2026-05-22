@@ -4,6 +4,4 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Workflow;
 
-class UpdateWorkflowRequest extends StoreWorkflowRequest
-{
-}
+class UpdateWorkflowRequest extends StoreWorkflowRequest {}

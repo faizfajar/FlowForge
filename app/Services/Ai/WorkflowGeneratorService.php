@@ -67,9 +67,7 @@ PROMPT;
     public function __construct(
         private readonly DagParser $dagParser,
         private readonly ExpressionLanguage $expressionLanguage,
-    )
-    {
-    }
+    ) {}
 
     public function generate(string $prompt, string $tenantId): array
     {

@@ -14,9 +14,7 @@ class ReleaseDelayedStepJob implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(private readonly string $stepRunId)
-    {
-    }
+    public function __construct(private readonly string $stepRunId) {}
 
     public function handle(): void
     {

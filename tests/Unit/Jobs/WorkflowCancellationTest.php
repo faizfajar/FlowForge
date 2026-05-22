@@ -70,10 +70,9 @@ class WorkflowCancellationTest extends TestCase
             'dependencies' => [],
         ];
 
-        $executor = new class($run->id) implements StepExecutorInterface {
-            public function __construct(private readonly string $runId)
-            {
-            }
+        $executor = new class($run->id) implements StepExecutorInterface
+        {
+            public function __construct(private readonly string $runId) {}
 
             public function execute(StepRun $stepRun, array $previousOutputs): array
             {

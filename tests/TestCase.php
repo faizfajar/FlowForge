@@ -9,6 +9,13 @@ use Illuminate\Support\Facades\Auth;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('broadcasting.default', 'log');
+    }
+
     protected function actingAsJwt(User $user): static
     {
         Auth::forgetGuards();

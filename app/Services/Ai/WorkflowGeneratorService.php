@@ -46,7 +46,7 @@ Rules:
   - HTTP_CALL config must use "payload", never "body".
   - Do not use template placeholders such as {{step_id}} anywhere.
   - Do not assume the runtime can interpolate previous step output directly into HTTP_CALL url or payload fields.
-  - If you include a public API endpoint, choose an endpoint that is valid and expected to return valid JSON.
+  - If you include a public API endpoint, choose an endpoint that is valid and expected to return valid JSON. (e.g https://dummyjson.com/products)
   - Do not invent fake API endpoints when the workflow depends on actual API response data.
 - Return the final result directly as clean JSON only, with no introduction, no explanation, and no closing text.
 

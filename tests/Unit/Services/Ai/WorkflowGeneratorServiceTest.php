@@ -15,6 +15,18 @@ class WorkflowGeneratorServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        putenv('GEMINI_API_KEY=test-key');
+        putenv('GEMINI_MODEL=gemini-2.5-flash-lite');
+        $_ENV['GEMINI_API_KEY'] = 'test-key';
+        $_SERVER['GEMINI_API_KEY'] = 'test-key';
+        $_ENV['GEMINI_MODEL'] = 'gemini-2.5-flash-lite';
+        $_SERVER['GEMINI_MODEL'] = 'gemini-2.5-flash-lite';
+    }
+
     public function test_system_prompt_contains_workflow_guardrails(): void
     {
         $prompt = WorkflowGeneratorService::SYSTEM_PROMPT;
@@ -32,7 +44,6 @@ class WorkflowGeneratorServiceTest extends TestCase
 
     public function test_generate_throws_ai_generation_exception_when_llm_returns_invalid_dag(): void
     {
-        putenv('GEMINI_API_KEY=test-key');
         Cache::forget('ai_generation_consecutive_failures');
 
         Http::fake([
@@ -74,7 +85,6 @@ class WorkflowGeneratorServiceTest extends TestCase
 
     public function test_generate_rejects_javascript_expressions_and_template_placeholders(): void
     {
-        putenv('GEMINI_API_KEY=test-key');
         Cache::forget('ai_generation_consecutive_failures');
 
         Http::fake([
@@ -129,7 +139,6 @@ class WorkflowGeneratorServiceTest extends TestCase
 
     public function test_generate_normalizes_http_call_body_to_payload(): void
     {
-        putenv('GEMINI_API_KEY=test-key');
         Cache::forget('ai_generation_consecutive_failures');
 
         Http::fake([

@@ -20,11 +20,11 @@ class WorkflowGeneratorServiceTest extends TestCase
         parent::setUp();
 
         putenv('GEMINI_API_KEY=test-key');
-        putenv('GEMINI_MODEL=gemini-2.5-flash-lite');
+        putenv('GEMINI_MODEL=gemini-2.5-flash');
         $_ENV['GEMINI_API_KEY'] = 'test-key';
         $_SERVER['GEMINI_API_KEY'] = 'test-key';
-        $_ENV['GEMINI_MODEL'] = 'gemini-2.5-flash-lite';
-        $_SERVER['GEMINI_MODEL'] = 'gemini-2.5-flash-lite';
+        $_ENV['GEMINI_MODEL'] = 'gemini-2.5-flash';
+        $_SERVER['GEMINI_MODEL'] = 'gemini-2.5-flash';
     }
 
     public function test_system_prompt_contains_workflow_guardrails(): void

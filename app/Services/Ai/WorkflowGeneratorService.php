@@ -169,7 +169,7 @@ PROMPT;
 
     private function geminiModel(): string
     {
-        $model = env('GEMINI_MODEL') ?: env('AI_MODEL') ?: 'gemini-2.5-flash-lite';
+        $model = env('GEMINI_MODEL') ?: env('AI_MODEL') ?: 'gemini-2.5-flash';
         $model = trim((string) $model);
 
         return str_starts_with($model, 'models/')

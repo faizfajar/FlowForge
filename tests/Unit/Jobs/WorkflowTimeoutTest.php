@@ -24,6 +24,13 @@ class WorkflowTimeoutTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('broadcasting.default', 'log');
+    }
+
     public function test_execute_workflow_job_fails_run_when_global_timeout_has_elapsed(): void
     {
         $run = $this->createRun(Carbon::now()->subSecond());

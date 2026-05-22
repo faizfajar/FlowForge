@@ -30,6 +30,13 @@ class WorkflowCancellationTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('broadcasting.default', 'log');
+    }
+
     public function test_cancel_workflow_job_marks_pending_and_running_steps_as_cancelled(): void
     {
         $run = $this->createRun();
